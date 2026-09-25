@@ -13,33 +13,29 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="wordmark" href="./" aria-label="GYM BOSS, главная">GYM<span>BOSS</span><small>NO PAIN. NO ГЕЙН.</small></a>
-      <div class="campaign-label"><span class="tiny-label">ТВОЯ ИСТОРИЯ</span><strong>ИЗ ДРИЩА В ЛЕГЕНДУ</strong></div>
-      <div class="header-controls"><button id="sound-toggle" class="icon-button" aria-label="Включить звук" title="Звук">♪</button><button id="help-button" class="icon-button" aria-label="Как играть">?</button></div>
+      <div class="header-controls"><button id="achievements-button" class="header-achievements" aria-label="Достижения" title="Достижения">★ <span id="achievement-count">0 / 5</span></button><button id="sound-toggle" class="icon-button" aria-label="Включить звук" title="Звук">♪</button><button id="help-button" class="icon-button" aria-label="Как играть">?</button></div>
     </header>
     <div class="game-topline">
       <div class="location"><span class="location-mark" aria-hidden="true">◈</span><div><span class="tiny-label" id="chapter-label">ГЛАВА 01 / 04</span><h1 id="gym-name">Подвал потных надежд</h1></div></div>
-      <div class="wallet"><div><span class="tiny-label">НАЛИЧКА</span><strong id="money">60 <span>₽</span></strong></div><div><span class="tiny-label">УВАЖЕНИЕ</span><strong id="respect">0 <span>REP</span></strong></div></div>
+      <div class="wallet"><div><span class="tiny-label">НАЛИЧКА</span><strong id="money">60 <span>₽</span></strong></div></div>
     </div>
     <main class="game-layout">
-      <aside class="character-panel">
-        <div class="section-heading"><span class="tiny-label">ЛИЧНОЕ ДЕЛО</span><span class="serial">#001</span></div>
-        <h2 id="player-rank">ПОКА ЕЩЁ<br>ДРИЩ</h2><p id="rank-description" class="muted">Гриф тяжелее твоих аргументов.</p>
-        <div class="power-readout"><span class="tiny-label">ОБЩАЯ МОЩЬ</span><div><strong id="power-value">7</strong><span id="power-next">/ 9 у соперника</span></div></div>
-        <div id="stats" class="stats"><div class="stat"><div><span>Сила</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div><div class="stat"><div><span>Техника</span><strong>6</strong></div><div class="stat-track"><i style="width:6%"></i></div></div><div class="stat"><div><span>Выносливость</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div></div>
-        <div class="energy-box"><div><span>Энергия</span><strong id="energy-value">100 / 100</strong></div><div class="energy-track"><i id="energy-bar" style="width:100%"></i></div><p id="energy-hint">Полон сил. Почти как настоящий качок.</p></div>
-        <div class="equipment-line"><span class="tiny-label">ЭКИПИРОВКА И БУСТЫ</span><div id="equipment">Потёртые шорты. Чистая вера.</div></div>
-        <button class="text-button" id="achievements-button">Твои достижения <span id="achievement-count">0 / 6</span> ↗</button>
-      </aside>
-      <section class="arena-scene" aria-label="Твой персонаж в качалке">
+      <div class="hero-column"><section class="arena-scene" aria-label="Твой персонаж в качалке">
         <img id="hero-image" class="hero-image" src="./assets/hero-0.png" alt="Худой новичок в подвальной качалке">
         <div class="scene-vignette" aria-hidden="true"></div><div class="scene-noise" aria-hidden="true"></div>
-        <div class="scene-top"><span class="live-label">В ЗАЛЕ</span><span class="scene-edition">EST. СЕГОДНЯ</span></div>
+        <div class="scene-top"><span class="live-label" id="player-rank">ПОКА ЕЩЁ ДРИЩ</span></div>
         <div id="floating-gains" class="floating-gains" aria-live="polite"></div>
-        <div class="scene-caption"><span class="tiny-label">КАЖДАЯ ЛЕГЕНДА С ЧЕГО-ТО НАЧИНАЕТ</span><div class="hero-name" id="hero-name">ТВОЙ ПЕРВЫЙ<br><em>ПОДХОД.</em></div><p id="hero-quote">«В этом зале тебя пока зовут “эй”.»</p></div>
+        <div class="scene-caption"><div class="hero-name" id="hero-name">ТВОЙ ПЕРВЫЙ<br><em>ПОДХОД.</em></div><p id="hero-quote">«В этом зале тебя пока зовут “эй”.»</p></div>
         <div class="evolution-strip" id="evolution-strip"><span class="active">ДРИЩ</span><i></i><span>АТЛЕТ</span><i></i><span>МАШИНА</span><i></i><span>БОСС</span></div>
       </section>
+      <aside class="character-panel" aria-label="Показатели героя">
+        <div class="power-readout"><span class="tiny-label">МОЩЬ</span><div><strong id="power-value">9</strong><span id="power-next">/ 9 у соперника</span></div></div>
+        <div id="stats" class="stats"><div class="stat"><div><span>Сила</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div><div class="stat"><div><span>Техника</span><strong>6</strong></div><div class="stat-track"><i style="width:6%"></i></div></div><div class="stat"><div><span>Выносливость</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div></div>
+        <div class="energy-box"><div><span>Энергия</span><strong id="energy-value">100 / 100</strong></div><div class="energy-track"><i id="energy-bar" style="width:100%"></i></div></div>
+        <div class="hidden-state" aria-hidden="true"><span id="rank-description"></span><span id="energy-hint"></span><span id="equipment"></span><span id="respect"></span></div>
+      </aside></div>
       <section class="actions-panel" aria-label="Действия">
-        <div class="tabbar" role="tablist" aria-label="Меню игры"><button class="tab active" id="tab-gym" role="tab" aria-selected="true" aria-controls="action-content" data-tab="gym">КАЧАЛКА</button><button class="tab" id="tab-shop" role="tab" aria-selected="false" aria-controls="action-content" data-tab="shop">ЛАВКА</button><button class="tab" id="tab-road" role="tab" aria-selected="false" aria-controls="action-content" data-tab="road">ПУТЬ</button></div>
+        <div class="tabbar" role="tablist" aria-label="Меню игры"><button class="tab active" id="tab-gym" role="tab" aria-selected="true" aria-controls="action-content" data-tab="gym">КАЧАТЬСЯ</button><button class="tab" id="tab-fight" role="tab" aria-selected="false" aria-controls="action-content" data-tab="fight">БОРЬБА</button><button class="tab" id="tab-shop" role="tab" aria-selected="false" aria-controls="action-content" data-tab="shop">ЛАВКА</button><button class="tab" id="tab-road" role="tab" aria-selected="false" aria-controls="action-content" data-tab="road">ПУТЬ</button></div>
         <div id="action-content" role="tabpanel" aria-labelledby="tab-gym">
           <div class="training-heading"><h2>ЖЕЛЕЗО ЖДЁТ.</h2><span class="tiny-label">ВЫБЕРИ ПОДХОД</span></div>
           <button class="training-card" data-train="strength"><span class="exercise-icon">↥</span><span><strong>Жим лёжа</strong><small>Прокачать силу</small></span><span class="action-price">−18 ⚡</span></button>
@@ -50,7 +46,7 @@
         </div>
       </section>
     </main>
-    <section class="campaign-strip" aria-label="Прогресс кампании" id="campaign-strip"><div class="current"><span>01</span><strong>ПОДВАЛ</strong><small>0 / 3 победы</small></div><div><span>02</span><strong>ЖЕЛЕЗНЫЙ ДВОР</strong><small>Закрыто</small></div><div><span>03</span><strong>ХРАМ ПАМПА</strong><small>Закрыто</small></div><div><span>04</span><strong>ОЛИМП</strong><small>Закрыто</small></div></section>
+    <section class="campaign-strip" aria-label="Прогресс кампании" id="campaign-strip"></section>
     <footer class="game-footer"><p id="log-line"><span>ТРЕНЕР</span> Штанга сама себя не поднимет. Хотя тебя, может, и поднимет.</p><button id="reset-button" class="text-button">Новая игра</button><span id="save-status">Прогресс сохраняется здесь</span></footer>
   </div>
   <div class="toast-stack" id="toasts" aria-live="polite"></div>
