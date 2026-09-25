@@ -11,20 +11,20 @@ export const RIVALS = Object.freeze([
   { id: 'rival-02', name: 'Боря Полблина', title: 'Мастер маленьких весов', quote: 'Маленький вес? Это огромный блин в перспективе.', winQuote: 'Чёрт. Придётся докинуть ещё полблина.', power: 12, gym: 0, portrait: 1, reward: 75 },
   { id: 'rival-03', name: 'Дядя Гена', title: 'Хозяин подвала', quote: 'При мне этот подвал ещё был котлованом.', winQuote: 'Ключи оставь вахтёру. Ты вырос из подвала.', power: 16, gym: 0, portrait: 2, reward: 100 },
   { id: 'rival-04', name: 'Турникмен', title: 'Гроза детской площадки', quote: 'Земля — для тех, кто не умеет подтягиваться.', winQuote: 'Ну всё, сегодня домой пешком. По земле.', power: 20, gym: 1, portrait: 3, reward: 110 },
-  { id: 'rival-05', name: 'Вадик Безног', title: 'Пропустил день ног', quote: 'Ноги? Брат, я на них в зал пришёл. Уже тренировка.', winQuote: 'Ладно. В понедельник — ноги. Точно.', power: 25, gym: 1, portrait: 0, reward: 130 },
-  { id: 'rival-06', name: 'Батя Района', title: 'Последний аргумент двора', quote: 'Поясница ноет, район уважает. Баланс.', winQuote: 'Мужик. За двор теперь спокоен.', power: 31, gym: 1, portrait: 1, reward: 160 },
-  { id: 'rival-07', name: 'Брат Магнезий', title: 'Послушник железа', quote: 'Да пребудет с тобой страховка.', winQuote: 'Брат, твой подход услышан.', power: 38, gym: 2, portrait: 2, reward: 180 },
-  { id: 'rival-08', name: 'Памп Палыч', title: 'Проповедник объёма', quote: 'Рукав не порвался? Значит, не молился.', winQuote: 'Вот это, мать его, проповедь.', power: 45, gym: 2, portrait: 3, reward: 210 },
-  { id: 'rival-09', name: 'Архижим', title: 'Верховный хранитель блинов', quote: 'Во имя жима, тяги и святого приседа.', winQuote: 'Храм признаёт тебя. Полотенце сдай.', power: 53, gym: 2, portrait: 0, reward: 250 },
-  { id: 'rival-10', name: 'Атлант На Массе', title: 'Держит небо на трапециях', quote: 'Небо лёгкое. Просто повторений много.', winQuote: 'Подержи секунду небо. Я попью.', power: 61, gym: 3, portrait: 1, reward: 300 },
-  { id: 'rival-11', name: 'Зевс Протеинович', title: 'Гром среди ясного жима', quote: 'Это не молния. Это предтрен пошёл.', winQuote: 'Даже гром сегодня жмёт тише.', power: 71, gym: 3, portrait: 2, reward: 350 },
-  { id: 'rival-12', name: 'ГИГАБАТЯ', title: 'Финальный босс качалки', quote: 'Я не занимаю тренажёр. Я и есть тренажёр.', winQuote: 'Теперь ты — босс. Только за собой блины убери.', power: 84, gym: 3, portrait: 3, reward: 500 },
+  { id: 'rival-05', name: 'Вадик Безног', title: 'Пропустил день ног', quote: 'Ноги? Брат, я на них в зал пришёл. Уже тренировка.', winQuote: 'Ладно. В понедельник — ноги. Точно.', power: 25, gym: 1, portrait: 4, reward: 130 },
+  { id: 'rival-06', name: 'Батя Района', title: 'Последний аргумент двора', quote: 'Поясница ноет, район уважает. Баланс.', winQuote: 'Мужик. За двор теперь спокоен.', power: 31, gym: 1, portrait: 5, reward: 160 },
+  { id: 'rival-07', name: 'Брат Магнезий', title: 'Послушник железа', quote: 'Да пребудет с тобой страховка.', winQuote: 'Брат, твой подход услышан.', power: 38, gym: 2, portrait: 6, reward: 180 },
+  { id: 'rival-08', name: 'Памп Палыч', title: 'Проповедник объёма', quote: 'Рукав не порвался? Значит, не молился.', winQuote: 'Вот это, мать его, проповедь.', power: 45, gym: 2, portrait: 7, reward: 210 },
+  { id: 'rival-09', name: 'Архижим', title: 'Верховный хранитель блинов', quote: 'Во имя жима, тяги и святого приседа.', winQuote: 'Храм признаёт тебя. Полотенце сдай.', power: 53, gym: 2, portrait: 8, reward: 250 },
+  { id: 'rival-10', name: 'Атлант На Массе', title: 'Держит небо на трапециях', quote: 'Небо лёгкое. Просто повторений много.', winQuote: 'Подержи секунду небо. Я попью.', power: 61, gym: 3, portrait: 9, reward: 300 },
+  { id: 'rival-11', name: 'Зевс Протеинович', title: 'Гром среди ясного жима', quote: 'Это не молния. Это предтрен пошёл.', winQuote: 'Даже гром сегодня жмёт тише.', power: 71, gym: 3, portrait: 10, reward: 350 },
+  { id: 'rival-12', name: 'ГИГАБАТЯ', title: 'Финальный босс качалки', quote: 'Я не занимаю тренажёр. Я и есть тренажёр.', winQuote: 'Теперь ты — босс. Только за собой блины убери.', power: 84, gym: 3, portrait: 11, reward: 500 },
 ]);
 
 export const SHOP = Object.freeze([
   { id: 'shawarma', name: 'Шаурма чемпиона', description: 'Курица, соус и немного веры в лучшее.', cost: 35, type: 'food', effect: '+30 энергии' },
   { id: 'protein', name: 'Протеин «Батин»', description: 'Вкус печенья. Послевкусие победы.', cost: 90, type: 'boost', effect: '+2 к основному навыку на 3 тренировки' },
-  { id: 'serum', name: 'Жидкий кураж', description: 'Легальный концентрат мемов. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 мощи на 1 бой, −15 энергии после' },
+  { id: 'serum', name: 'Жидкий кураж', description: 'Легальный концентрат мемов. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 мощи на 1 бой, −15 энергии при выходе на ковёр' },
   { id: 'wraps', name: 'Бинты авторитета', description: 'Теперь запястья выглядят так, будто у них есть связи.', cost: 140, type: 'gear', effect: '+5 техники навсегда' },
   { id: 'shoes', name: 'Кеды «Неубиваемые»', description: 'Пережили физру, стройку и двух тренеров.', cost: 220, type: 'gear', effect: '+7 выносливости навсегда' },
   { id: 'belt', name: 'Пояс «Батя одобрил»', description: 'Держит спину и самооценку.', cost: 340, type: 'gear', effect: '+9 силы навсегда' },
@@ -159,15 +159,16 @@ function tell(rival, round) {
 export function beginFight(state) {
   const rival = nextRival(state);
   if (!rival) return failure(state, 'Ты уже босс всех качалок. Легенда не обязана доказывать.');
-  if (state.energy < 20) return failure(state, 'Для вызова нужно 20 энергии. Отдохни перед боем.');
   const serum = state.buff?.id === 'serum';
+  if (state.energy < (serum ? 35 : 20)) return failure(state, serum ? 'С «Жидким куражом» нужно минимум 35 энергии. Отдохни перед боем.' : 'Для вызова нужно 20 энергии. Отдохни перед боем.');
+  const convertedEnergy = Math.min(80, state.energy - (serum ? 15 : 0));
   const battle = {
-    rivalId: rival.id, playerHp: 100, enemyHp: 100, playerStamina: 100, round: 0,
+    rivalId: rival.id, playerHp: 100, enemyHp: 100, playerStamina: 20 + convertedEnergy, round: 0,
     telegraph: tell(rival, 0), history: [], finished: false, result: null,
-    playerPower: power(state), serum,
+    playerPower: power(state), serum, serumPaidAtStart: serum,
   };
-  const message = `${rival.name} принимает вызов. Читай его следующий приём.`;
-  return { state: commit({ ...state, energy: state.energy - 20, buff: serum ? null : state.buff }, message), battle, message };
+  const message = `${rival.name} принимает вызов. ${convertedEnergy} энергии превращено в запас сил.`;
+  return { state: commit({ ...state, energy: state.energy - convertedEnergy - (serum ? 15 : 0), buff: serum ? null : state.buff }, message), battle, message };
 }
 
 export function fightTurn(state, battle, move, timing = 0.5) {
@@ -207,15 +208,16 @@ export function fightTurn(state, battle, move, timing = 0.5) {
     history: [...battle.history, { round, move, telegraph: battle.telegraph, playerDamage, enemyDamage, message }],
   };
   if (!finished) return { state, battle: nextBattle, message };
-  const drain = battle.serum ? 15 : 0;
+  // Battles saved before energy conversion still owe the old deferred serum cost.
+  const drain = battle.serum && !battle.serumPaidAtStart ? 15 : 0;
   if (result === 'win') {
     const wins = state.wins + 1;
     const gym = Math.min(3, Math.floor(wins / 3));
     const respect = 10 + rival.gym * 5;
     const finalMessage = `${rival.name} побеждён! +${rival.reward} ₽, +${respect} уважения.${gym > state.gym ? ` Открыт зал «${GYMS[gym].name}».` : ''}${wins === 12 ? ' Ты — БОСС КАЧАЛКИ.' : ''}`;
-    const next = { ...state, wins, gym, won: wins === 12, money: state.money + rival.reward, respect: state.respect + respect, energy: Math.min(100, Math.max(20, state.energy + 20 - drain)) };
+    const next = { ...state, wins, gym, won: wins === 12, money: state.money + rival.reward, respect: state.respect + respect, energy: Math.min(100, Math.max(0, state.energy + 10 - drain)) };
     return { state: commit(next, finalMessage), battle: nextBattle, message: finalMessage, reward: rival.reward };
   }
   const finalMessage = 'Этот раунд за соперником. Деньги на месте, характер крепче. Отдохни, потренируйся и возвращайся.';
-  return { state: commit({ ...state, energy: Math.min(100, Math.max(20, state.energy + 10 - drain)) }, finalMessage), battle: nextBattle, message: finalMessage };
+  return { state: commit({ ...state, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, finalMessage), battle: nextBattle, message: finalMessage };
 }

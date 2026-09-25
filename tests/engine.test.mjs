@@ -32,7 +32,8 @@ assert.equal(GYMS.length, 4);
 assert.equal(RIVALS.length, 12);
 assert.equal(new Set(RIVALS.map(r => r.id)).size, 12);
 assert.deepEqual(RIVALS.map(r => r.power), [9, 12, 16, 20, 25, 31, 38, 45, 53, 61, 71, 84]);
-assert.ok(RIVALS.every(r => r.gym >= 0 && r.gym <= 3 && r.portrait >= 0 && r.portrait <= 3));
+assert.ok(RIVALS.every(r => r.gym >= 0 && r.gym <= 3));
+assert.deepEqual(RIVALS.map(r => r.portrait), Array.from({ length: 12 }, (_, i) => i));
 assert.ok(SHOP.every(item => item.cost > 0 && ['food', 'boost', 'gear'].includes(item.type)));
 
 const initial = freeze(createState());
@@ -85,8 +86,15 @@ assert.equal(power(serum), power(initial) + 10);
 const serumFight = beginFight(freeze(serum));
 assert.equal(serumFight.state.buff, null);
 assert.equal(serumFight.battle.playerPower, power(initial) + 10);
+assert.equal(serumFight.battle.playerStamina, 100);
+assert.equal(serumFight.state.energy, 5);
 const serumResult = fight(serum);
-assert.equal(serumResult.state.energy, 85, 'Serum costs 15 energy after the fight');
+assert.equal(serumResult.state.energy, 15, 'Serum and converted stamina are paid before the fight; a win restores 10 energy');
+for (const energy of [20, 40, 60, 80, 100]) {
+  const started = beginFight(freeze({ ...initial, energy }));
+  assert.equal(started.battle.playerStamina, 20 + Math.min(80, energy));
+  assert.equal(started.state.energy, Math.max(0, energy - 80));
+}
 
 const firstWin = fight(initial);
 assert.equal(firstWin.battle.result, 'win');
