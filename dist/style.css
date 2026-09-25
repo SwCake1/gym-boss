@@ -197,18 +197,31 @@
 @media(max-width:640px){.workout-stage{grid-template-columns:1fr;gap:14px}.workout-photo.training-gif{width:min(100%,330px);height:auto;max-height:210px;margin:auto}}
 
 /* Visible campaign checkpoints after each gym boss. */
-.campaign-progress{min-height:32px}
+.campaign-strip>div.campaign-progress{min-height:32px;overflow:visible}
 .campaign-track{position:relative;overflow:visible;height:6px}
-.campaign-milestone{position:absolute;top:50%;width:21px;height:21px;display:grid;place-items:center;transform:translate(-50%,-50%);border:2px solid #78908b;border-radius:50%;background:#192a2d;color:#aec3bd;font:800 10px var(--body);box-shadow:0 0 0 3px #152328}
-.campaign-milestone.next{border-color:var(--orange);color:var(--orange)}
-.campaign-milestone.done{border-color:var(--orange);background:var(--orange);color:#162227}
-.campaign-milestone:last-child{left:calc(100% - 11px)!important;font-size:13px}
+.campaign-milestone{position:absolute;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);border:2px solid #78908b;border-radius:50%;background:#192a2d;box-shadow:0 0 0 2px #152328}
+.campaign-milestone.next{border-color:var(--orange)}
+.campaign-milestone.done{border-color:var(--orange);background:var(--orange)}
+.campaign-milestone:last-child{left:calc(100% - 6px)!important}
 
 /* The newly earned portion of each stat bar glows after training. */
 .stat-track{position:relative;height:6px}
 .stat.gained strong{color:var(--orange)}
 .stat-gain-segment{position:absolute;top:0;bottom:0;z-index:1;min-width:6px;background:var(--orange);box-shadow:0 0 10px 2px #ff694b99;transform-origin:left center;animation:stat-fill .65s ease-out both}
 @keyframes stat-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.stat-name,.energy-box>div:first-child>span{display:inline-flex;align-items:center;gap:4px}
+.character-panel .stat>div:first-child,.character-panel .energy-box>div:first-child{flex-wrap:wrap;gap:2px 5px}
+.stat strong,.energy-box strong{white-space:nowrap}
+.energy-box.gained strong{color:var(--orange)}
+.stat-help{position:relative;z-index:2;display:inline-grid;place-items:center;flex:none;width:14px;height:14px;padding:0;border:1px solid #708984;border-radius:50%;background:#263d3e;color:#bcd3ca;font:700 10px var(--body);line-height:1}
+.stat-help:hover,.stat-help:focus-visible{border-color:var(--cyan);color:#fff;background:#36605b}
+.stat-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);width:min(230px,calc(100vw - 36px));padding:10px 12px;border:1px solid #71958a;border-radius:3px;background:#102326;color:#e6f1e9;box-shadow:0 10px 24px #0009;font:500 12px/1.45 var(--body);text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s}
+.stat-help:hover .stat-tooltip,.stat-help:focus .stat-tooltip{opacity:1;visibility:visible;transform:translateY(0)}
+.stat:last-child .stat-tooltip,.energy-box .stat-tooltip{left:auto;right:0}
+
+/* Crop square gym scenes within wide panels without stretching them. */
+.gym-panorama{position:relative;overflow:hidden;background:none}
+.gym-panorama::before{content:'';position:absolute;top:50%;left:0;width:100%;aspect-ratio:1;background:url('./assets/locations.png') var(--gym-position,0% 0%)/200% 200% no-repeat;transform:translateY(-50%)}
 
 /* One clear product photo per shop item. */
 .shop-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:10px}

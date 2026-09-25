@@ -29,9 +29,9 @@
         <div class="evolution-strip" id="evolution-strip"><span class="active">ДРИЩ</span><i></i><span>АТЛЕТ</span><i></i><span>МАШИНА</span><i></i><span>БОСС</span></div>
       </section>
       <aside class="character-panel" aria-label="Показатели героя">
-        <div class="power-readout"><span class="tiny-label">МОЩЬ</span><div><strong id="power-value">9</strong><span id="power-next">/ 9 у соперника</span></div></div>
+        <div class="power-readout"><span class="tiny-label">МОЩЬ <button type="button" class="stat-help" aria-label="Мощь: общий показатель из силы, техники и выносливости. Чем выше мощь относительно соперника, тем больше ты наносишь урона и меньше получаешь.">?<span class="stat-tooltip" role="tooltip">Общий показатель из силы, техники и выносливости. Чем выше мощь относительно соперника, тем больше ты наносишь урона и меньше получаешь.</span></button></span><div><strong id="power-value">9</strong><span id="power-next">/ 9 у соперника</span></div></div>
         <div id="stats" class="stats"><div class="stat"><div><span>Сила</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div><div class="stat"><div><span>Техника</span><strong>6</strong></div><div class="stat-track"><i style="width:6%"></i></div></div><div class="stat"><div><span>Выносливость</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div></div>
-        <div class="energy-box"><div><span>Энергия</span><strong id="energy-value">100 / 100</strong></div><div class="energy-track"><i id="energy-bar" style="width:100%"></i></div></div>
+        <div class="energy-box"><div><span>Энергия <button type="button" class="stat-help" aria-label="Энергия: тратится на тренировки и подработку. Перед борьбой до 80 единиц превращаются в запас сил.">?<span class="stat-tooltip" role="tooltip">Тратится на тренировки и подработку. Перед борьбой до 80 единиц превращаются в запас сил.</span></button></span><strong id="energy-value">100 / 100</strong></div><div class="energy-track"><i id="energy-bar" style="width:100%"></i></div></div>
         <div class="hidden-state" aria-hidden="true"><span id="rank-description"></span><span id="energy-hint"></span><span id="equipment"></span><span id="respect"></span></div>
       </aside></div>
       <section class="actions-panel" aria-label="Действия">
@@ -47,7 +47,7 @@
       </section>
     </main>
     <section class="campaign-strip" aria-label="Прогресс кампании" id="campaign-strip"></section>
-    <footer class="game-footer"><p id="log-line"><span>ТРЕНЕР</span> Штанга сама себя не поднимет. Хотя тебя, может, и поднимет.</p><button id="reset-button" class="text-button">Новая игра</button><span id="save-status">Прогресс сохраняется здесь</span></footer>
+    <footer class="game-footer"><p id="log-line"><span>ТРЕНЕР</span> Штанга сама себя не поднимет. Хотя тебя, может, и поднимет.</p><span id="save-status">Прогресс сохраняется здесь</span><button id="reset-button" class="text-button">Новая игра</button></footer>
   </div>
   <div class="toast-stack" id="toasts" aria-live="polite"></div>
   <dialog id="game-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
