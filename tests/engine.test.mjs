@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival, train, rest, work, buy, beginFight, fightTurn } from '../dist/engine.mjs';
+import { GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival, train, rest, work, buy, beginFight, fightTurn, fightTimingWindow, fightMovePreview } from '../dist/engine.mjs';
 
 function freeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -117,6 +117,39 @@ const afterBreath = fightTurn(freeze(breathing.state), freeze({ ...breathing.bat
 assert.equal(afterBreath.battle.playerStamina, 42);
 assert.equal(afterBreath.battle.enemyHp, 100);
 assert.ok(afterBreath.battle.playerHp < 100, 'Breathing exposes the player to damage');
+
+// Each move uses its named stat, while technique widens the timing window and
+// endurance makes moves cheaper and recovery stronger.
+const evenStats = { ...initial, strength: 8, technique: 8, endurance: 8 };
+const evenBattle = { ...beginFight(evenStats).battle, playerPower: 10 };
+for (const [move, stat] of [['push', 'strength'], ['counter', 'technique'], ['grip', 'endurance']]) {
+  const neutralBattle = { ...evenBattle, telegraph: move };
+  const normal = fightTurn(evenStats, neutralBattle, move, 0.5);
+  const specialist = fightTurn({ ...evenStats, [stat]: 60 }, neutralBattle, move, 0.5);
+  assert.ok(specialist.turn.playerDamage > normal.turn.playerDamage, `${stat} should strengthen ${move}`);
+}
+assert.ok(fightTimingWindow({ ...evenStats, technique: 60 }, evenBattle) > fightTimingWindow(evenStats, evenBattle));
+assert.ok(fightTimingWindow(evenStats, { ...evenBattle, rivalId: RIVALS[11].id }) < fightTimingWindow(evenStats, evenBattle), 'Later bosses narrow the timing zone');
+const durable = { ...evenStats, endurance: 80 };
+assert.equal(fightMovePreview(durable, evenBattle, 'push').staminaDelta, -10);
+assert.equal(fightMovePreview(durable, { ...evenBattle, playerStamina: 20 }, 'breathe').staminaDelta, 36);
+assert.equal(fightMovePreview(evenStats, { ...evenBattle, telegraph: 'push' }, 'counter').matchup, 'advantage');
+assert.ok(fightMovePreview(evenStats, evenBattle, 'push').maxDamage >= fightMovePreview(evenStats, evenBattle, 'push').minDamage);
+
+const comboStart = fightTurn(evenStats, { ...evenBattle, telegraph: 'push' }, 'counter', 0.5);
+assert.equal(comboStart.turn.timingGrade, 'perfect');
+assert.equal(comboStart.turn.matchup, 'advantage');
+assert.equal(comboStart.battle.combo, 1);
+assert.deepEqual(comboStart.turn, comboStart.battle.history.at(-1));
+const comboNext = fightTurn(evenStats, { ...comboStart.battle, telegraph: 'push' }, 'counter', 0.5);
+assert.equal(comboNext.turn.comboBonus, 3);
+assert.equal(comboNext.battle.combo, 2);
+const comboMiss = fightTurn(evenStats, { ...comboNext.battle, telegraph: 'push' }, 'counter', 0);
+assert.equal(comboMiss.turn.timingGrade, 'miss');
+assert.equal(comboMiss.turn.comboBonus, 6);
+assert.equal(comboMiss.battle.combo, 0);
+const { combo: unusedCombo, ...oldSavedBattle } = evenBattle;
+assert.equal(fightTurn(evenStats, { ...oldSavedBattle, telegraph: 'push' }, 'counter', 0.5).battle.combo, 1, 'Old saved fights without combo remain playable');
 
 // Play the whole campaign with average training timing, no purchases, and learned tells.
 // On defeat the player trains once, rests as needed, then tries again.

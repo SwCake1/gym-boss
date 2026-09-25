@@ -24,7 +24,7 @@ export const RIVALS = Object.freeze([
 export const SHOP = Object.freeze([
   { id: 'shawarma', name: 'Шаурма чемпиона', description: 'Курица, соус и немного веры в лучшее.', cost: 35, type: 'food', effect: '+30 энергии' },
   { id: 'protein', name: 'Протеин «Батин»', description: 'Вкус печенья. Послевкусие победы.', cost: 90, type: 'boost', effect: '+2 к основному навыку на 3 тренировки' },
-  { id: 'serum', name: 'Жидкий кураж', description: 'Легальный концентрат мемов. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 мощи на 1 бой, −15 энергии при выходе на ковёр' },
+  { id: 'serum', name: 'Жидкий кураж', description: 'Концентрат силы. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 мощи на 1 бой, −15 энергии при выходе на ковёр' },
   { id: 'wraps', name: 'Бинты авторитета', description: 'Теперь запястья выглядят так, будто у них есть связи.', cost: 140, type: 'gear', effect: '+5 техники навсегда' },
   { id: 'shoes', name: 'Кеды «Неубиваемые»', description: 'Пережили физру, стройку и двух тренеров.', cost: 220, type: 'gear', effect: '+7 выносливости навсегда' },
   { id: 'belt', name: 'Пояс «Батя одобрил»', description: 'Держит спину и самооценку.', cost: 340, type: 'gear', effect: '+9 силы навсегда' },
@@ -151,9 +151,75 @@ export function buy(state, itemId) {
 }
 
 function tell(rival, round) {
-  // Fixed, non-repeating pattern: readable tells always determine the right response.
+  // The visible tell always determines the right response; patterns vary by rival.
   const pattern = [0, 2, 1, 2, 0, 1, 0, 2, 1, 0];
-  return MOVES[(pattern[round % pattern.length] + RIVALS.indexOf(rival)) % 3];
+  const index = RIVALS.indexOf(rival);
+  const step = rival.gym >= 2 ? (round * (rival.gym === 3 ? 2 : 1)) % 3 : 0;
+  return MOVES[(pattern[round % pattern.length] + index + step) % 3];
+}
+
+export function fightTimingWindow(state, battle) {
+  const rival = RIVALS.find(entry => entry.id === battle?.rivalId);
+  if (!rival) return 0.18;
+  const technique = Number.isFinite(state?.technique) ? state.technique : 6;
+  const boss = RIVALS.indexOf(rival) % 3 === 2;
+  return Math.round(clamp(
+    0.19 - rival.gym * 0.014 - (boss ? 0.012 : 0)
+      + clamp((technique - rival.power * 0.5) * 0.0009, -0.012, 0.035),
+    0.13, 0.23,
+  ) * 1000) / 1000;
+}
+
+function moveOutcome(state, battle, move, timing) {
+  const rival = RIVALS.find(entry => entry.id === battle.rivalId);
+  const window = fightTimingWindow(state, battle);
+  const distance = Math.abs(timing - 0.5);
+  const timingGrade = distance <= window * 0.35 ? 'perfect' : distance <= window ? 'good' : 'miss';
+  const precision = clamp(1 - distance / (window * 2), 0, 1);
+  const ratio = clamp(battle.playerPower / rival.power, 0.35, 2);
+  const countered = move !== 'breathe' && BEATS[move] === battle.telegraph;
+  const caught = move !== 'breathe' && BEATS[battle.telegraph] === move;
+  const matchup = move === 'breathe' ? 'rest' : countered ? 'advantage' : caught ? 'disadvantage' : 'neutral';
+  const tired = battle.playerStamina < 14;
+  const averageStat = (state.strength + state.technique + state.endurance) / 3;
+  const specialty = move === 'breathe' ? 1 : clamp(0.75 + state[MOVE_STAT[move]] / averageStat * 0.25, 0.84, 1.18);
+  const comboBefore = finite(battle.combo, 0, 0, 3);
+  const comboBonus = move === 'breathe' ? 0 : comboBefore * 3;
+  const playerDamage = move === 'breathe' ? 0 : Math.round(clamp(
+    14 * ratio ** 1.6 * (0.82 + precision * 0.22) * (countered ? 1.3 : caught ? 0.8 : 1)
+      * specialty * (1 + comboBonus / 100) * (tired ? 0.7 : 1), 4, 19,
+  ));
+  const enemyHp = Math.max(0, battle.enemyHp - playerDamage);
+  const boss = RIVALS.indexOf(rival) % 3 === 2;
+  const enemyDamage = enemyHp <= 0 ? 0 : Math.round(clamp(
+    17 / ratio ** 0.8 * (move === 'breathe' ? 0.9 : countered ? 0.64 : caught ? 1.15 : 0.93)
+      * (tired && move !== 'breathe' ? 1.12 : 1) * (1 + rival.gym * 0.025 + (boss ? 0.035 : 0))
+      * (timingGrade === 'perfect' ? 0.96 : timingGrade === 'miss' ? 1.04 : 1), 6, 19,
+  ));
+  const staminaCost = clamp(15 - Math.floor(state.endurance / 16), 10, 14);
+  const staminaRecovery = clamp(32 + Math.floor(state.endurance / 20), 32, 40);
+  const playerStamina = move === 'breathe'
+    ? Math.min(100, battle.playerStamina + staminaRecovery)
+    : Math.max(0, battle.playerStamina - staminaCost);
+  const comboAfter = countered && timingGrade !== 'miss' ? Math.min(3, comboBefore + 1) : 0;
+  return {
+    playerDamage, enemyDamage, playerStamina, staminaDelta: playerStamina - battle.playerStamina,
+    timingGrade, timingWindow: window, comboBefore, comboAfter, comboBonus, matchup, countered, caught, tired,
+  };
+}
+
+export function fightMovePreview(state, battle, move) {
+  if (!battle || ![...MOVES, 'breathe'].includes(move) || !RIVALS.some(entry => entry.id === battle.rivalId)) return null;
+  const low = moveOutcome(state, battle, move, 0);
+  const high = moveOutcome(state, battle, move, 0.5);
+  return {
+    staminaDelta: high.staminaDelta,
+    minDamage: low.playerDamage,
+    maxDamage: high.playerDamage,
+    matchup: high.matchup,
+    comboBonus: high.comboBonus,
+    timingWindow: high.timingWindow,
+  };
 }
 
 export function beginFight(state) {
@@ -164,7 +230,7 @@ export function beginFight(state) {
   const convertedEnergy = Math.min(80, state.energy - (serum ? 15 : 0));
   const battle = {
     rivalId: rival.id, playerHp: 100, enemyHp: 100, playerStamina: 20 + convertedEnergy, round: 0,
-    telegraph: tell(rival, 0), history: [], finished: false, result: null,
+    telegraph: tell(rival, 0), history: [], combo: 0, finished: false, result: null,
     playerPower: power(state), serum, serumPaidAtStart: serum,
   };
   const message = `${rival.name} принимает вызов. ${convertedEnergy} энергии превращено в запас сил.`;
@@ -180,34 +246,24 @@ export function fightTurn(state, battle, move, timing = 0.5) {
   if (!rival || nextRival(state)?.id !== rival.id) return fail('Этот соперник уже пройден. Начни новый бой.');
   if (![battle.playerHp, battle.enemyHp, battle.playerStamina, battle.round, battle.playerPower].every(Number.isFinite) || !MOVES.includes(battle.telegraph) || !Array.isArray(battle.history)) return fail('Состояние боя повреждено. Начни бой заново.');
   const safeTiming = finite(timing, 0.5, 0, 1, false);
-  const precision = 1 - Math.abs(safeTiming - 0.5) * 2;
-  const ratio = clamp(battle.playerPower / rival.power, 0.35, 2);
-  const countered = BEATS[move] === battle.telegraph;
-  const caught = BEATS[battle.telegraph] === move;
-  const tired = battle.playerStamina < 14;
-  const averageStat = (state.strength + state.technique + state.endurance) / 3;
-  const specialty = move === 'breathe' ? 1 : clamp(0.8 + state[MOVE_STAT[move]] / averageStat * 0.2, 0.88, 1.12);
-  const playerDamage = move === 'breathe' ? 0 : Math.round(clamp(
-    14 * ratio ** 1.6 * (0.84 + precision * 0.2) * (countered ? 1.3 : caught ? 0.8 : 1) * specialty * (tired ? 0.7 : 1), 4, 19,
-  ));
+  const turn = moveOutcome(state, battle, move, safeTiming);
+  const { playerDamage, enemyDamage, playerStamina, countered, caught, tired } = turn;
   const enemyHp = Math.max(0, battle.enemyHp - playerDamage);
-  const enemyDamage = enemyHp <= 0 ? 0 : Math.round(clamp(
-    17 / ratio ** 0.8 * (move === 'breathe' ? 0.9 : countered ? 0.64 : caught ? 1.15 : 0.93) * (tired && move !== 'breathe' ? 1.12 : 1), 6, 19,
-  ));
   const playerHp = Math.max(0, battle.playerHp - enemyDamage);
   const round = battle.round + 1;
-  const playerStamina = move === 'breathe' ? Math.min(100, battle.playerStamina + 32) : Math.max(0, battle.playerStamina - 14);
   const finished = enemyHp <= 0 || playerHp <= 0 || round >= 10;
   // At the bell, the fighter with more remaining HP wins. A draw favors the defending boss.
   const result = !finished ? null : enemyHp <= 0 || (playerHp > 0 && round >= 10 && playerHp > enemyHp) ? 'win' : 'loss';
   const message = move === 'breathe'
     ? `Перевёл дух: +${playerStamina - battle.playerStamina} запаса сил. Соперник нанёс ${enemyDamage}.`
-    : `${countered ? 'Прочитал соперника!' : caught ? 'Он поймал твой приём.' : 'Лоб в лоб.'} Урон ${playerDamage}${enemyDamage ? `, получено ${enemyDamage}` : ''}${tired ? '. Силы на исходе' : ''}.`;
+    : `${countered ? 'Прочитал соперника!' : caught ? 'Он поймал твой приём.' : 'Лоб в лоб.'} Урон ${playerDamage}${enemyDamage ? `, получено ${enemyDamage}` : ''}${turn.comboBonus ? `. Серия +${turn.comboBonus}%` : ''}${tired ? '. Силы на исходе' : ''}.`;
+  const turnRecord = { round, move, telegraph: battle.telegraph, ...turn, message };
   const nextBattle = {
-    ...battle, playerHp, enemyHp, playerStamina, round, telegraph: tell(rival, round), finished, result,
-    history: [...battle.history, { round, move, telegraph: battle.telegraph, playerDamage, enemyDamage, message }],
+    ...battle, playerHp, enemyHp, playerStamina, round, combo: turn.comboAfter,
+    telegraph: tell(rival, round), finished, result,
+    history: [...battle.history, turnRecord],
   };
-  if (!finished) return { state, battle: nextBattle, message };
+  if (!finished) return { state, battle: nextBattle, message, turn: turnRecord };
   // Battles saved before energy conversion still owe the old deferred serum cost.
   const drain = battle.serum && !battle.serumPaidAtStart ? 15 : 0;
   if (result === 'win') {
@@ -216,8 +272,8 @@ export function fightTurn(state, battle, move, timing = 0.5) {
     const respect = 10 + rival.gym * 5;
     const finalMessage = `${rival.name} побеждён! +${rival.reward} ₽, +${respect} уважения.${gym > state.gym ? ` Открыт зал «${GYMS[gym].name}».` : ''}${wins === 12 ? ' Ты — БОСС КАЧАЛКИ.' : ''}`;
     const next = { ...state, wins, gym, won: wins === 12, money: state.money + rival.reward, respect: state.respect + respect, energy: Math.min(100, Math.max(0, state.energy + 10 - drain)) };
-    return { state: commit(next, finalMessage), battle: nextBattle, message: finalMessage, reward: rival.reward };
+    return { state: commit(next, finalMessage), battle: nextBattle, message: finalMessage, reward: rival.reward, turn: turnRecord };
   }
   const finalMessage = 'Этот раунд за соперником. Деньги на месте, характер крепче. Отдохни, потренируйся и возвращайся.';
-  return { state: commit({ ...state, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, finalMessage), battle: nextBattle, message: finalMessage };
+  return { state: commit({ ...state, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, finalMessage), battle: nextBattle, message: finalMessage, turn: turnRecord };
 }
