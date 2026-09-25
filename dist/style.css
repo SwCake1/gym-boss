@@ -159,3 +159,27 @@
   .arena-scene .scene-caption p{font-size:14px;line-height:1.4}
 }
 @media(max-width:520px){.arena-scene .hero-image{object-position:center 20%}}
+
+/* Fight resources and round result stay visually distinct from the timing track. */
+.stamina-meter{margin:15px 0 0}
+.stamina-label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;color:#d2c3a2;font-size:12px;font-weight:700;letter-spacing:.6px}
+.stamina-label strong{color:var(--gold);font-size:14px;letter-spacing:0}
+.stamina-track{height:10px;margin-top:7px;overflow:hidden;border:1px solid #596345;border-radius:5px;background:#102024}
+.stamina-track i{display:block;height:100%;background:linear-gradient(90deg,#b68d42,var(--gold));transition:width .35s ease}
+.stamina-track.low i{background:var(--orange)}
+.timing-caption{margin-top:17px;text-align:right;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.8px}
+.fight-log{margin-top:15px;min-height:0;padding:13px;border:1px solid #405756;border-radius:4px;background:#112328;color:var(--ink)}
+.fight-log-placeholder{font-size:13px;color:var(--muted)}
+.fight-log-summary{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:9px}
+.fight-log-summary span{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.7px}
+.fight-log-summary strong{color:var(--ink);font-size:14px}
+.fight-log-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.fight-log-stat{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:2px 7px;padding:9px 11px;border:1px solid #395b56;border-left:3px solid var(--cyan);background:#1c3735}
+.fight-log-stat.received{border-color:#654c46;border-left-color:var(--orange);background:#302927}
+.fight-log-stat span{font-size:10px;font-weight:800;letter-spacing:.5px;color:#b6d4cb}
+.fight-log-stat.received span{color:#e4b6a8}
+.fight-log-stat strong{grid-column:2;grid-row:1/3;font:800 25px 'Barlow Condensed',var(--display);color:var(--cyan)}
+.fight-log-stat.received strong{color:var(--orange)}
+.fight-log-stat small{font-size:11px;color:var(--muted)}
+.fight-log-note{margin-top:8px;font-size:12px;color:var(--gold)}
+@media(max-width:520px){.fight-log{padding:10px}.fight-log-stats{gap:6px}.fight-log-stat{padding:7px}.fight-log-stat span{font-size:9px}.fight-log-stat strong{font-size:21px}}
