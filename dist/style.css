@@ -196,13 +196,18 @@
 .workout-photo.training-gif{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:contain;object-position:center;background:#0d191d;border:1px solid #526d66;box-shadow:0 12px 32px #0006;animation:none}
 @media(max-width:640px){.workout-stage{grid-template-columns:1fr;gap:14px}.workout-photo.training-gif{width:min(100%,330px);height:auto;max-height:210px;margin:auto}}
 
-/* Visible campaign checkpoints after each gym boss. */
-.campaign-strip>div.campaign-progress{min-height:32px;overflow:visible}
-.campaign-track{position:relative;overflow:visible;height:6px}
-.campaign-milestone{position:absolute;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);border:2px solid #78908b;border-radius:50%;background:#192a2d;box-shadow:0 0 0 2px #152328}
-.campaign-milestone.next{border-color:var(--orange)}
-.campaign-milestone.done{border-color:var(--orange);background:var(--orange)}
-.campaign-milestone:last-child{left:calc(100% - 6px)!important}
+/* Gym names share each checkpoint's exact position on the progress line. */
+.campaign-strip>div.campaign-progress{min-height:52px;overflow:visible;align-items:flex-start}
+.campaign-route{display:flex;flex:1;min-width:0;height:42px;padding-top:6px}
+.campaign-track{position:relative;flex:1;overflow:visible;height:6px;margin-right:50px}
+.campaign-stop{position:absolute;top:50%;width:0;height:0}
+.campaign-stop:last-child{left:100%!important}
+.campaign-milestone{position:absolute;left:0;top:0;width:12px;height:12px;transform:translate(-50%,-50%);border:2px solid #78908b;border-radius:50%;background:#192a2d;box-shadow:0 0 0 2px #152328}
+.campaign-stop.next .campaign-milestone{border-color:var(--orange)}
+.campaign-stop.done .campaign-milestone{border-color:var(--orange);background:var(--orange)}
+.campaign-stop-name{position:absolute;top:13px;left:0;transform:translateX(-50%);width:100px;color:#758a8b;text-align:center;white-space:nowrap;font:500 11px/1.2 var(--body)}
+.campaign-stop.current .campaign-stop-name,.campaign-stop.done .campaign-stop-name{color:var(--ink)}
+@media(max-width:640px){.campaign-strip>div.campaign-progress{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 12px;min-height:78px}.campaign-route{grid-column:1/-1;grid-row:2;width:100%;height:42px;padding-top:0}.campaign-track{margin-right:30px}.campaign-stop-name{width:60px;font-size:9px;white-space:normal}}
 
 /* The newly earned portion of each stat bar glows after training. */
 .stat-track{position:relative;height:6px}
@@ -213,8 +218,8 @@
 .character-panel .stat>div:first-child,.character-panel .energy-box>div:first-child{flex-wrap:wrap;gap:2px 5px}
 .stat strong,.energy-box strong{white-space:nowrap}
 .energy-box.gained strong{color:var(--orange)}
-.stat-help{position:relative;z-index:2;display:inline-grid;place-items:center;flex:none;width:14px;height:14px;padding:0;border:1px solid #708984;border-radius:50%;background:#263d3e;color:#bcd3ca;font:700 10px var(--body);line-height:1}
-.stat-help:hover,.stat-help:focus-visible{border-color:var(--cyan);color:#fff;background:#36605b}
+.stat-help{position:relative;z-index:2;display:inline-grid;place-items:center;flex:none;width:12px;height:14px;padding:0;border:0;background:transparent;color:#90a8a2;opacity:.5;font:700 10px var(--body);line-height:1}
+.stat-help:hover,.stat-help:focus-visible{color:var(--cyan);opacity:1;background:transparent}
 .stat-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);width:min(230px,calc(100vw - 36px));padding:10px 12px;border:1px solid #71958a;border-radius:3px;background:#102326;color:#e6f1e9;box-shadow:0 10px 24px #0009;font:500 12px/1.45 var(--body);text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s}
 .stat-help:hover .stat-tooltip,.stat-help:focus .stat-tooltip{opacity:1;visibility:visible;transform:translateY(0)}
 .stat:last-child .stat-tooltip,.energy-box .stat-tooltip{left:auto;right:0}
