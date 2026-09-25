@@ -117,3 +117,45 @@
 .road-group summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .road-group .road-item:last-child{border-bottom:0;margin-bottom:12px}
 @media(max-width:520px){.arena-scene .hero-image{object-position:center top}.shop-item p{font-size:12px}.shop-buy{font-size:11px;min-width:59px}}
+
+/* The character portrait is the stage: show the entire artwork on wide screens. */
+@media(min-width:761px){
+  .arena-scene{height:clamp(740px,85vh,860px);min-height:740px;background-color:#0b191c}
+  .arena-scene .hero-image{height:calc(100% - 150px);object-fit:contain;object-position:center center}
+  .arena-scene .scene-vignette{background:linear-gradient(90deg,#07131566,transparent 22%,transparent 78%,#07131566),linear-gradient(180deg,transparent 0 76%,#091b1f88 100%)}
+  .arena-scene .scene-caption{left:0;right:0;bottom:43px;min-height:107px;padding:12px 21px;background:#102529f2;border-top:1px solid #48635f}
+  .arena-scene .hero-name{font-size:clamp(31px,3.1vw,42px);margin:0 0 6px;line-height:.9}
+  .arena-scene .evolution-strip{height:43px;padding:0 20px;background:#0d2023}
+}
+
+/* Every game action has a button shape at rest and a clear response on hover. */
+.tabbar{border-bottom:0;gap:6px;align-items:center}
+.tab{height:42px;padding:0 7px;border:1px solid #40595a;border-radius:4px;background:#203438;color:#c9d6d2;box-shadow:inset 0 -2px 0 #122629}
+.tab.active{color:#152024;background:var(--orange);border-color:#ff936e;box-shadow:0 3px 14px #ff653b30}
+.tab.active:after{display:none}
+.training-card{border-color:#587573;border-left:3px solid var(--cyan);background:#213538;box-shadow:0 3px 0 #0c1d20}
+.training-card .exercise-icon{background:#31504b}
+.utility-actions button,.secondary-button,.move-button,.breathe-button,.shop-buy{border-color:#607974;background:#27403d;box-shadow:0 3px 0 #0c1d20}
+.utility-actions button{border-left:3px solid var(--gold)}
+.utility-actions button:disabled{box-shadow:none}
+.icon-button,.close-button,.header-achievements{background:#203438;border-color:#58716e}
+.text-button{background:#263b3b;border:1px solid #58716e;border-radius:3px;padding:9px 12px;color:#e4eeeb;font-size:13px;font-weight:700}
+.road-group summary{margin:5px 0;padding:13px 12px;background:#203438;border:1px solid #4f6865;border-radius:4px}
+.road-group summary span{color:#aec4bd}
+.road-group summary:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+@media(hover:hover){
+  button:not(:disabled),.road-group summary,.wordmark{transition:background-color .18s,border-color .18s,box-shadow .18s,transform .18s,color .18s,filter .18s}
+  .tab:hover:not(:disabled),.training-card:hover:not(:disabled),.utility-actions button:hover:not(:disabled),.secondary-button:hover:not(:disabled),.move-button:hover:not(:disabled),.breathe-button:hover:not(:disabled),.shop-buy:hover:not(:disabled),.icon-button:hover:not(:disabled),.close-button:hover:not(:disabled),.header-achievements:hover:not(:disabled),.text-button:hover:not(:disabled),.road-group summary:hover{transform:translateY(-2px);border-color:var(--cyan);background:#31514c;box-shadow:0 6px 18px #63d5ba29}
+  .tab.active:hover:not(:disabled),.primary-button:hover:not(:disabled){transform:translateY(-2px);background:#ff8965;border-color:#ffb092;box-shadow:0 7px 24px #ff653b55}
+  .wordmark:hover{color:var(--cyan);filter:brightness(1.16)}
+}
+@media(max-width:520px){.tabbar{gap:4px}.tab{font-size:10px;padding:0 2px;height:38px}}
+@media(min-width:1200px){
+  .arena-scene{height:clamp(520px,calc(100dvh - 170px),680px);min-height:520px}
+  .arena-scene .hero-image{left:auto;right:0;width:auto;max-width:100%;height:100%;object-position:right center;mask-image:linear-gradient(90deg,transparent 0%,#000 20%,#000 83%,transparent 100%)}
+  .arena-scene .scene-vignette{background:linear-gradient(90deg,#071315d9 0%,#07131599 35%,transparent 64%),linear-gradient(0deg,#07131566,transparent 42%)}
+  .arena-scene .scene-caption{left:20px;right:auto;bottom:83px;width:min(42%,260px);min-height:0;padding:0;background:none;border:0}
+  .arena-scene .hero-name{font-size:clamp(31px,3vw,43px);line-height:.94;margin:0 0 12px}
+  .arena-scene .scene-caption p{font-size:14px;line-height:1.4}
+}
+@media(max-width:520px){.arena-scene .hero-image{object-position:center 20%}}
