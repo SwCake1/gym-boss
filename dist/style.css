@@ -238,6 +238,11 @@
 .portrait-trigger{position:relative;display:block;padding:0;cursor:zoom-in}
 .portrait-trigger:hover{border-color:var(--cyan);filter:brightness(1.13)}
 .rival-portrait.portrait-trigger::after{content:'↗';position:absolute;top:3px;right:4px;display:grid;place-items:center;width:17px;height:17px;border-radius:50%;background:#142528d9;color:#d7f5e9;font-size:12px;line-height:1}
+/* Show both complete fighters at their source aspect ratios during a bout. */
+.fight-stage>div{min-width:0}
+.fight-stage .fighter-image{width:100%;height:auto;aspect-ratio:1;background-color:#102026;background-repeat:no-repeat}
+.fight-stage .fighter-image.player{background-position:center;background-size:contain}
+.fight-stage .fighter-image.enemy{background-size:200% 200%}
 .fighter-image.enemy.portrait-trigger{width:100%;text-align:left}
 .fighter-image.enemy.portrait-trigger::before{content:'↗';position:absolute;z-index:2;top:8px;right:8px;display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#142528db;color:#d7f5e9;font-size:17px}
 .portrait-dialog{width:min(580px,calc(100% - 28px));max-height:92dvh}
