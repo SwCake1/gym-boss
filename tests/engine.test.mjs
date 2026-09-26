@@ -76,6 +76,10 @@ for (let charge = 3; charge >= 1; charge--) {
   assert.equal(supplemented.buff?.charges ?? 0, charge - 1);
 }
 assert.equal(buy(freeze(supplemented), 'belt').state.strength, supplemented.strength + 9);
+const cookies = buy(freeze({ ...initial, energy: 40, money: 1000 }), 'cookies');
+assert.equal(cookies.state.energy, 90);
+assert.equal(cookies.state.money, 945);
+assert.equal(sanitizeState({ ...initial, buff: { id: 'trenbolone', charges: 1 } }).buff.id, 'trenbolone');
 
 // Endurance sizes the reservoir; it cannot change damage, timing, or recovery.
 assert.equal(fightMaxStamina(initial), 86);
@@ -96,6 +100,14 @@ assert.equal(serumFight.battle.attackStrength, initial.strength + 10);
 assert.equal(serumFight.battle.playerStamina, fightStartingStamina(serum));
 assert.equal(serumFight.state.energy, 5);
 assert.ok(fightMovePreview(serumFight.state, serumFight.battle, 'attack').maxDamage > fightMovePreview(initial, beginFight(initial).battle, 'attack').maxDamage);
+const trenbolone = buy(freeze({ ...initial, money: 1000 }), 'trenbolone').state;
+assert.equal(trenbolone.buff.id, 'trenbolone');
+assert.ok(beginFight({ ...trenbolone, energy: 44 }).error.includes('45'));
+const trenFight = beginFight(freeze(trenbolone));
+assert.equal(trenFight.battle.attackStrength, initial.strength + 20);
+assert.equal(trenFight.battle.playerStamina, fightStartingStamina(trenbolone));
+assert.equal(trenFight.state.energy, 0);
+assert.equal(trenFight.state.buff, null);
 
 const basic = beginFight(initial);
 assert.equal(basic.battle.enemyMaxHp, 100);

@@ -286,3 +286,19 @@
 @media(min-width:641px) and (max-height:740px){
   .fight-stage .fighter-image,.fight-stage .fighter-image.enemy.portrait-trigger{width:min(100%,160px)}
 }
+
+/* Keep the face in frame when the wide portrait is cropped into a short scene. */
+@media(max-width:760px){.arena-scene .hero-image{object-position:center top}}
+
+/* At tablet widths, give resources one row and the three stats a full row. */
+@media(min-width:521px) and (max-width:760px){
+  .character-panel{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;align-items:start;padding:16px 20px}
+  .character-panel .power-readout{grid-column:1;grid-row:1;min-width:0;align-self:center}
+  .character-panel .energy-box{grid-column:2;grid-row:1;min-width:0;align-self:center;border-top:0;border-left:1px solid #42635a;padding:0 0 0 20px}
+  .character-panel .stats{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;min-width:0;padding-top:14px;border-top:1px solid #42635a}
+  .character-panel .stat{min-width:0}
+}
+
+/* Override the generic campaign span size so milestone names fit the route. */
+.campaign-strip .campaign-stop-name{font-family:var(--body);font-size:11px;line-height:1.2}
+@media(max-width:640px){.campaign-strip .campaign-stop-name{width:60px;font-size:9px;line-height:1.15;white-space:normal}}

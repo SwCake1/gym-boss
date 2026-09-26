@@ -23,8 +23,10 @@ export const RIVALS = Object.freeze([
 
 export const SHOP = Object.freeze([
   { id: 'shawarma', name: 'Шаурма чемпиона', description: 'Курица, соус и немного веры в лучшее.', cost: 35, type: 'food', effect: '+30 энергии' },
+  { id: 'cookies', name: 'Печеньки с молочком', description: 'Домашний уют в раздевалке. Только кружку не оставляй.', cost: 55, type: 'food', effect: '+50 энергии' },
   { id: 'protein', name: 'Протеин «Батин»', description: 'Вкус печенья. Послевкусие победы.', cost: 90, type: 'boost', effect: '+2 к основному навыку на 3 тренировки' },
   { id: 'serum', name: 'Жидкий кураж', description: 'Концентрат силы. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 силы на 1 бой, −15 энергии при выходе на ковёр' },
+  { id: 'trenbolone', name: 'Тренболон «Кольнуть в очко»', description: 'Суровая этикетка для совершенно абсурдного сюжетного буста.', cost: 250, type: 'boost', effect: '+20 силы на 1 бой, −25 энергии при выходе на ковёр' },
   { id: 'wraps', name: 'Бинты авторитета', description: 'Теперь запястья выглядят так, будто у них есть связи.', cost: 140, type: 'gear', effect: '+5 техники навсегда' },
   { id: 'shoes', name: 'Кеды «Неубиваемые»', description: 'Пережили физру, стройку и двух тренеров.', cost: 220, type: 'gear', effect: '+7 выносливости навсегда' },
   { id: 'belt', name: 'Пояс «Батя одобрил»', description: 'Держит спину и самооценку.', cost: 340, type: 'gear', effect: '+9 силы навсегда' },
@@ -72,7 +74,7 @@ export function sanitizeState(input) {
   clean.playSeconds = finite(input.playSeconds, 0, 0, 100000000);
   clean.startedAt = finite(input.startedAt, clean.startedAt, 1, 8640000000000000);
   clean.equipment = [...new Set(Array.isArray(input.equipment) ? input.equipment.filter(id => Object.hasOwn(GEAR_GAINS, id)) : [])];
-  if (input.buff && typeof input.buff === 'object' && ['protein', 'serum'].includes(input.buff.id)) {
+  if (input.buff && typeof input.buff === 'object' && ['protein', 'serum', 'trenbolone'].includes(input.buff.id)) {
     const charges = finite(input.buff.charges, 0, 0, input.buff.id === 'protein' ? 3 : 1);
     if (charges > 0) clean.buff = { id: input.buff.id, charges };
   }
@@ -83,7 +85,7 @@ export function sanitizeState(input) {
 
 export function power(state) {
   const core = (state.strength * 0.46 + state.technique * 0.32 + state.endurance * 0.22) * 0.62 + 4.5;
-  return Math.max(1, Math.round(core + (state.buff?.id === 'serum' ? 10 : 0)));
+  return Math.max(1, Math.round(core + (state.buff?.id === 'serum' ? 10 : state.buff?.id === 'trenbolone' ? 20 : 0)));
 }
 
 export function nextRival(state) {
@@ -133,12 +135,13 @@ export function buy(state, itemId) {
   if (!item) return failure(state, 'Товар исчез. Видимо, его съел тренер.');
   if (item.type === 'gear' && state.equipment.includes(item.id)) return failure(state, 'Эта экипировка уже твоя.');
   if (item.type === 'boost' && state.buff) return failure(state, 'Сначала используй текущий усилитель.');
-  if (item.type === 'food' && state.energy >= 100) return failure(state, 'Энергии уже полный бак. Прибереги шаурму.');
+  if (item.type === 'food' && state.energy >= 100) return failure(state, 'Энергии уже полный бак. Прибереги перекус.');
   if (state.money < item.cost) return failure(state, `Не хватает ${item.cost - state.money} ₽. Подработка ждёт.`);
   const next = { ...state, money: state.money - item.cost };
-  if (item.type === 'food') next.energy = Math.min(100, state.energy + 30);
+  if (item.type === 'food') next.energy = Math.min(100, state.energy + (item.id === 'cookies' ? 50 : 30));
   if (item.id === 'protein') next.buff = { id: 'protein', charges: 3 };
   if (item.id === 'serum') next.buff = { id: 'serum', charges: 1 };
+  if (item.id === 'trenbolone') next.buff = { id: 'trenbolone', charges: 1 };
   if (item.type === 'gear') {
     next.equipment = [...state.equipment, item.id];
     for (const [stat, gain] of Object.entries(GEAR_GAINS[item.id])) next[stat] = Math.min(500, state[stat] + gain);
@@ -155,7 +158,13 @@ export function fightMaxStamina(state) {
 }
 
 function energyCommitted(state) {
-  return Math.min(80, Math.max(0, state.energy - (state.buff?.id === 'serum' ? 15 : 0)));
+  return Math.min(80, Math.max(0, state.energy - fightBoost(state).energyCost));
+}
+
+function fightBoost(state) {
+  if (state.buff?.id === 'serum') return { strength: 10, energyCost: 15, name: 'Жидким куражом' };
+  if (state.buff?.id === 'trenbolone') return { strength: 20, energyCost: 25, name: 'Тренболоном' };
+  return { strength: 0, energyCost: 0, name: '' };
 }
 
 export function fightStartingStamina(state) {
@@ -202,7 +211,7 @@ export function migrateBattle(state, input) {
     history: input.history.slice(-10),
     finished: false,
     result: null,
-    attackStrength: finite(input.attackStrength, state.strength + (input.serum ? 10 : 0), 1, 510),
+    attackStrength: finite(input.attackStrength, state.strength + (input.serum ? 10 : 0), 1, 520),
     serum: !!input.serum,
     serumPaidAtStart: !!input.serumPaidAtStart,
   };
@@ -226,18 +235,20 @@ export function fightMovePreview(state, battle, move) {
 export function beginFight(state) {
   const rival = nextRival(state);
   if (!rival) return failure(state, 'Ты уже босс всех качалок. Легенда не обязана доказывать.');
+  const boost = fightBoost(state);
   const serum = state.buff?.id === 'serum';
-  if (state.energy < (serum ? 35 : 20)) return failure(state, serum ? 'С «Жидким куражом» нужно минимум 35 энергии. Отдохни перед боем.' : 'Для вызова нужно 20 энергии. Отдохни перед боем.');
+  const required = 20 + boost.energyCost;
+  if (state.energy < required) return failure(state, boost.energyCost ? `С «${boost.name}» нужно минимум ${required} энергии. Отдохни перед боем.` : 'Для вызова нужно 20 энергии. Отдохни перед боем.');
   const convertedEnergy = energyCommitted(state);
   const enemyMaxHp = 100 + RIVALS.indexOf(rival) * 14;
   const battle = {
     rivalId: rival.id, playerHp: 100, enemyHp: enemyMaxHp, enemyMaxHp,
     maxStamina: fightMaxStamina(state), playerStamina: fightStartingStamina(state),
     round: 0, history: [], finished: false, result: null,
-    attackStrength: state.strength + (serum ? 10 : 0), serum, serumPaidAtStart: serum,
+    attackStrength: state.strength + boost.strength, serum, serumPaidAtStart: serum,
   };
   const message = `${rival.name} принимает вызов. ${convertedEnergy} энергии дают ${battle.playerStamina} запаса сил из ${battle.maxStamina}.`;
-  return { state: commit({ ...state, energy: state.energy - convertedEnergy - (serum ? 15 : 0), buff: serum ? null : state.buff }, message), battle, message };
+  return { state: commit({ ...state, energy: state.energy - convertedEnergy - boost.energyCost, buff: boost.strength ? null : state.buff }, message), battle, message };
 }
 
 export function fightTurn(state, battle, move, timing = 0.5) {
