@@ -47,7 +47,7 @@ function gainsPop(gains,heroGains=false,trainingKind=null){
   gainsTimer=setTimeout(()=>{recentGains=null;recentTrainingKind=null;renderStats();renderEnergy();},6000);
 }
 
-function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>+40 энергии · 6 сек.</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>+${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
+function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>Антистресс · +40 энергии</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>Разложи блины · ${20+state.gym*15}–${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
 function fightMarkup(){
   const rival=nextRival(state);
   if(!rival)return `<div class="fight-panel"><span class="group-title">ФИНАЛ</span><h2>ТРЕНАЖЁРЫ ТЕПЕРЬ СЛУШАЮТСЯ ТЕБЯ.</h2><p class="dialog-copy">Все 12 соперников побеждены. Трон твой.</p><button id="victory-button" class="primary-button">МОЙ ТРИУМФ <span>♛</span></button></div>`;
@@ -149,7 +149,7 @@ function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.i
 function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;$('dialog-content').innerHTML=html;if(!$('game-dialog').open)$('game-dialog').showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
-function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата выбирай уход от показанного приёма. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся.</strong> Отдых бесплатный. На шаурму и экипировку заработай подработкой или победами.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
+function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай в любом месте антистресса: шарики пружинят, энергия возвращается без штрафов. На подработке раскладывай блины от лёгкого к тяжёлому: ошибки уменьшают оплату.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
 function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ ШКАФ С КУБКАМИ')}<h2 id="dialog-title">ЗАСЛУГИ ПЕРЕД ЖЕЛЕЗОМ.</h2><div class="achievement-list">${achievements.map(([id,name,desc])=>`<div class="achievement-item ${state.achievements.includes(id)?'':'locked'}">${state.achievements.includes(id)?'✓':'○'} ${name}<small>${desc}</small></div>`).join('')}</div></div>`);}
 
 function trainingShell(kind,game){
@@ -307,35 +307,88 @@ function startTraining(kind){
   else if(kind==='technique')techniqueTraining();
   else cardioTraining();
 }
-function timedAction(kind){
+function shuffled(items){
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}
+  return result;
+}
+function startRestGame(){
   if(working||battle)return;
-  if(kind==='rest'&&state.energy===100){toast('Ты уже полон сил.');return;}
-  if(kind==='work'&&state.energy<12){toast('Сначала передохни: для работы нужно 12 энергии.',true);return;}
+  if(state.energy===100){toast('Ты уже полон сил.');return;}
   working=true;
-  const seconds=kind==='rest'?6:8;
-  const lines=kind==='rest'
-    ? ['Сел на скамью. Выглядишь занятой.','Глубокий вдох. Неглубокие мысли.','Силы возвращаются. Понты тоже.']
-    : ['Переносишь блины. Не те, что со сметаной.','Сорок килограммов чужих амбиций.','Тренер готовит наличку. Без премии.'];
-  modal(`<div class="dialog-body">${modalTop(kind==='rest'?'ВОССТАНОВЛЕНИЕ':'ПОДРАБОТКА')}<h2 id="dialog-title">${kind==='rest'?'ПОСИДИ КРАСИВО.':'ЖЕЛЕЗО ЛЮБИТ ПОРЯДОК.'}</h2><p class="work-description" id="work-description">${lines[0]}</p><div class="timer-ring"><i id="work-progress"></i></div><p class="dialog-copy">${kind==='rest'?'+40 энергии · бесплатно':`+${35+state.gym*15} ₽ · −12 энергии`} <span id="work-timer">${seconds} сек.</span></p></div>`,'timed');
-  const started=performance.now();
-  let raf=0,stop=false;
-  const frame=()=>{
-    if(stop)return;
-    const p=Math.min(1,(performance.now()-started)/(seconds*1000));
-    $('work-progress').style.width=`${p*100}%`;
-    $('work-timer').textContent=`${Math.ceil(seconds*(1-p))} сек.`;
-    $('work-description').textContent=lines[Math.min(2,Math.floor(p*3))];
-    if(p===1){
-      cleanup=null;
-      closeModal();
-      apply(kind==='rest'?rest(state):work(state));
-      tone('tap');
+  modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ · БЕСПЛАТНО')}<h2 id="dialog-title">ПОЖМЯКАЙ. ВЫДОХНИ.</h2><p class="dialog-copy">Тапай в любом месте. Смотри, как пружинят пузыри. Здесь невозможно ошибиться.</p><p class="training-reward">ЭНЕРГИЯ +40 · БЕЗ ТАЙМЕРА И ШТРАФОВ</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажимай в любом месте поля шесть раз, чтобы восстановить энергию"><span class="rest-field-prompt" aria-hidden="true">ЖМЯКНИ ЗДЕСЬ <b>✦</b></span></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="utility-game-status" id="utility-status" role="status">0 / 6 жмяков · просто расслабься</div></div>`,'utility');
+  const field=$('rest-playfield');
+  const orbs=Array.from({length:7},(_,i)=>{
+    const node=document.createElement('span');node.className=`rest-orb orb-${i%3}`;node.setAttribute('aria-hidden','true');field.append(node);
+    return {node,x:25+Math.random()*Math.max(1,field.clientWidth-90),y:25+Math.random()*Math.max(1,field.clientHeight-90),vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3};
+  });
+  const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reducedMotion)for(const orb of orbs)orb.node.style.transform=`translate3d(${orb.x}px,${orb.y}px,0)`;
+  let active=true,complete=false,pops=0,frameId=0,timer=0,last=performance.now();
+  const frame=now=>{
+    if(!active)return;
+    const step=Math.min(2,(now-last)/16.67);last=now;
+    const width=field.clientWidth-54,height=field.clientHeight-54;
+    for(const orb of orbs){
+      orb.vy+=.17*step;orb.x+=orb.vx*step;orb.y+=orb.vy*step;
+    }
+    // Equal-mass elastic collisions: separate overlapping balls, then exchange
+    // the component of their velocity along the impact axis.
+    for(let pass=0;pass<2;pass++)for(let i=0;i<orbs.length;i++)for(let j=i+1;j<orbs.length;j++){
+      const a=orbs[i],b=orbs[j],dx=b.x-a.x,dy=b.y-a.y,distance=Math.hypot(dx,dy);
+      if(distance>=54)continue;
+      const nx=distance?dx/distance:1,ny=distance?dy/distance:0,overlap=(54-distance)/2;
+      a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
+      const relative=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+      if(relative<0){const impulse=-(1+.9)*relative/2;a.vx-=impulse*nx;a.vy-=impulse*ny;b.vx+=impulse*nx;b.vy+=impulse*ny;}
+    }
+    for(const orb of orbs){
+      if(orb.x<0||orb.x>width){orb.x=Math.max(0,Math.min(width,orb.x));orb.vx*=-.82;}
+      if(orb.y<0||orb.y>height){orb.y=Math.max(0,Math.min(height,orb.y));orb.vy*=-.78;orb.vx*=.97;}
+      orb.node.style.transform=`translate3d(${orb.x}px,${orb.y}px,0)`;
+    }
+    frameId=requestAnimationFrame(frame);
+  };
+  if(!reducedMotion)frameId=requestAnimationFrame(frame);
+  field.addEventListener('click',event=>{
+    if(!active||complete)return;
+    const rect=field.getBoundingClientRect();
+    const x=event.detail?event.clientX-rect.left:rect.width/2,y=event.detail?event.clientY-rect.top:rect.height/2;
+    const burst=document.createElement('span');burst.className='rest-ripple';burst.style.left=`${x}px`;burst.style.top=`${y}px`;field.append(burst);burst.addEventListener('animationend',()=>burst.remove(),{once:true});
+    for(let i=0;i<9;i++){
+      const spark=document.createElement('span');spark.className='rest-spark';spark.style.left=`${x}px`;spark.style.top=`${y}px`;
+      spark.style.setProperty('--dx',`${(Math.random()-.5)*180}px`);spark.style.setProperty('--dy',`${(Math.random()-.7)*145}px`);
+      field.append(spark);spark.addEventListener('animationend',()=>spark.remove(),{once:true});
+    }
+    for(const orb of orbs){const dx=orb.x+27-x,dy=orb.y+27-y,distance=Math.max(28,Math.hypot(dx,dy));const force=4+100/(distance+20);orb.vx+=dx/distance*force+(Math.random()-.5)*2;orb.vy+=dy/distance*force-9;}
+    pops++;$('rest-pips').children[pops-1].classList.add('filled');$('utility-status').textContent=`${pops} / 6 жмяков · ${pops===6?'силы вернулись!':'никаких ошибок'}`;
+    tone(pops===6?'perfect':'tap');
+    if(pops===6){complete=true;field.disabled=true;timer=setTimeout(()=>{if(!active)return;active=false;closeModal();apply(rest(state),{eventEligible:true});},850);}
+  });
+  cleanup=()=>{active=false;cancelAnimationFrame(frameId);clearTimeout(timer);};
+}
+function startWorkGame(){
+  if(working||battle)return;
+  if(state.energy<12){toast('Сначала передохни: для работы нужно 12 энергии.',true);return;}
+  working=true;
+  const weights=[5,10,15,20,25];
+  const plates=shuffled(weights);
+  const minimum=20+state.gym*15,maximum=35+state.gym*15;
+  modal(`<div class="dialog-body utility-game work-game">${modalTop('ПОДРАБОТКА · −12 ЭНЕРГИИ')}<h2 id="dialog-title">РАЗЛОЖИ БЛИНЫ, БРАТ.</h2><p class="dialog-copy">Нажимай на блины от лёгкого к тяжёлому. За ошибки тренер урежет премию.</p><p class="training-reward">ОПЛАТА ${minimum}–${maximum} ₽ · ПОСЛЕ ЗАВЕРШЕНИЯ</p><div class="plate-rack">${plates.map(weight=>`<button type="button" class="work-plate" data-weight="${weight}" aria-label="Блин ${weight} килограммов"><span>${weight}</span><small>кг</small></button>`).join('')}</div><div class="utility-game-status" id="utility-status" role="status">Следующий: 5 кг · ошибок: 0</div></div>`,'utility');
+  let next=0,errors=0,active=true,timer=0;
+  const finish=()=>{if(!active)return;active=false;closeModal();apply(work(state,Math.max(0,1-errors*.2)),{eventEligible:true});tone('perfect');};
+  document.querySelectorAll('.work-plate').forEach(button=>button.addEventListener('click',()=>{
+    if(!active||button.disabled)return;
+    if(Number(button.dataset.weight)!==weights[next]){
+      errors++;tone('error');button.classList.remove('wrong');void button.offsetWidth;button.classList.add('wrong');
+      $('utility-status').textContent=`Ищи ${weights[next]} кг · ошибок: ${errors}`;
       return;
     }
-    raf=requestAnimationFrame(frame);
-  };
-  cleanup=()=>{stop=true;cancelAnimationFrame(raf);};
-  raf=requestAnimationFrame(frame);
+    button.classList.add('stacked');button.disabled=true;next++;tone();
+    $('utility-status').textContent=next===weights.length?`Все блины на месте · ошибок: ${errors}`:`Следующий: ${weights[next]} кг · ошибок: ${errors}`;
+    if(next===weights.length)timer=setTimeout(finish,420);
+  }));
+  cleanup=()=>{active=false;clearTimeout(timer);};
 }
 function startFight(){if(working||battle)return;const result=beginFight(state);if(result.error){toast(result.error,true);return;}battle=result.battle;state=result.state;persist();render();roundLock=false;fightView();tone('hit');}
 function fightLogMarkup(current,message=''){
@@ -498,8 +551,8 @@ function handleClick(ev){
   if(b.dataset.buy){if(apply(buy(state,b.dataset.buy)))tone('perfect');return;}
   if(b.dataset.move){makeMove(b.dataset.move);return;}
   switch(b.id){
-    case 'rest-button': timedAction('rest');break;
-    case 'work-button': timedAction('work');break;
+    case 'rest-button': startRestGame();break;
+    case 'work-button': startWorkGame();break;
     case 'fight-button': startFight();break;
     case 'victory-button': showVictory();break;
     case 'victory-music-toggle': if(victoryTrack.paused)playVictoryMusic();else victoryTrack.pause();break;

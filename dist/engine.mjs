@@ -139,14 +139,14 @@ export function train(state, kind, quality = 0.5) {
 export function rest(state) {
   if (state.energy >= 100) return failure(state, 'Ты уже бодр как батя перед шашлыками.');
   const restored = Math.min(40, 100 - state.energy);
-  const message = `Посидел на скамье, осмыслил железо. +${restored} энергии.`;
+  const message = `Пожмякал антистресс и перевёл дух. +${restored} энергии.`;
   return { state: commit({ ...state, energy: state.energy + restored }, message), message, restored };
 }
 
-export function work(state) {
+export function work(state, quality = 1) {
   if (state.energy < 12) return failure(state, 'Для подработки нужно 12 энергии. Сначала отдохни.');
-  const earned = 35 + state.gym * 15;
-  const message = `Разнёс блины по стойкам. Заработал ${earned} ₽.`;
+  const earned = 20 + state.gym * 15 + Math.round(finite(quality, 1, 0, 1, false) * 15);
+  const message = `Разложил блины по весу. Заработал ${earned} ₽.`;
   return { state: commit({ ...state, money: state.money + earned, energy: state.energy - 12, totalWork: state.totalWork + 1 }, message), message, earned };
 }
 

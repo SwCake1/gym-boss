@@ -71,6 +71,13 @@ assert.ok(beginFight(freeze({ ...initial, energy: 19 })).error.includes('20'));
 assert.ok(work(freeze({ ...initial, energy: 11 })).error.includes('12'));
 assert.equal(rest(initial).state, initial);
 
+const tired = freeze({ ...initial, energy: 20 });
+assert.equal(rest(tired).restored, 40);
+assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
+assert.equal(work(tired, 0).earned, 20);
+assert.equal(work(tired, 1).earned, 35);
+assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 65);
+
 const malformed = sanitizeState({
   ...initial, name: '<>\u0000  ', wins: 99, gym: -8, won: false, strength: Infinity, technique: NaN,
   endurance: -100, energy: Infinity, money: -50, workouts: NaN, totalWork: -1,
