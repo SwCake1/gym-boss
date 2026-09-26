@@ -116,13 +116,23 @@ assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').minDamage, 0)
 assert.equal(fightMovePreview(basic.state, basic.battle, 'push'), null);
 assert.ok(fightTurn(basic.state, basic.battle, 'push').error);
 const perfect = fightTurn(freeze(basic.state), freeze(basic.battle), 'attack', 0.5);
-const good = fightTurn(basic.state, basic.battle, 'attack', 0.5 + fightTimingWindow(initial, basic.battle) * 0.7);
+const timingWindow = fightTimingWindow(initial, basic.battle);
+const good = fightTurn(basic.state, basic.battle, 'attack', 0.5 + timingWindow * 0.5);
+const weak = fightTurn(basic.state, basic.battle, 'attack', 0.5 + timingWindow * 0.85);
 const miss = fightTurn(basic.state, basic.battle, 'attack', 0);
 assert.equal(perfect.turn.timingGrade, 'perfect');
 assert.equal(good.turn.timingGrade, 'good');
+assert.equal(weak.turn.timingGrade, 'weak');
 assert.equal(miss.turn.timingGrade, 'miss');
-assert.equal(perfect.turn.playerDamage, good.turn.playerDamage);
+assert.equal(good.turn.playerDamage, Math.round(perfect.turn.playerDamage * 2 / 3));
+assert.equal(weak.turn.playerDamage, Math.round(perfect.turn.playerDamage / 3));
 assert.equal(miss.turn.playerDamage, 0);
+for (const offset of [-1, 1]) {
+  assert.equal(fightTurn(basic.state, basic.battle, 'attack', 0.5 + offset * timingWindow * 0.32).turn.timingGrade, 'perfect');
+  assert.equal(fightTurn(basic.state, basic.battle, 'attack', 0.5 + offset * timingWindow * 0.65).turn.timingGrade, 'good');
+  assert.equal(fightTurn(basic.state, basic.battle, 'attack', 0.5 + offset * timingWindow * 0.99).turn.timingGrade, 'weak');
+  assert.equal(fightTurn(basic.state, basic.battle, 'attack', 0.5 + offset * (timingWindow + 0.001)).turn.timingGrade, 'miss');
+}
 assert.ok(perfect.turn.enemyDamage < good.turn.enemyDamage && good.turn.enemyDamage < miss.turn.enemyDamage);
 assert.deepEqual(perfect.turn, perfect.battle.history.at(-1));
 assert.equal(perfect.turn.staminaCost, 18);

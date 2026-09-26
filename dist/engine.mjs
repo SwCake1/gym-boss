@@ -262,16 +262,17 @@ export function fightTurn(state, battle, move, timing = 0.5) {
   const window = fightTimingWindow(state, current);
   const distance = Math.abs(finite(timing, 0.5, 0, 1, false) - 0.5);
   const winded = current.playerStamina < 18;
-  const timingGrade = winded ? 'winded' : distance <= window * 0.35 ? 'perfect' : distance <= window ? 'good' : 'miss';
-  const playerDamage = ['perfect', 'good'].includes(timingGrade) ? attackDamage(current.attackStrength) : 0;
+  const timingGrade = winded ? 'winded' : distance <= window / 3 ? 'perfect' : distance <= window * 2 / 3 ? 'good' : distance <= window ? 'weak' : 'miss';
+  const damageMultiplier = { perfect: 1, good: 2 / 3, weak: 1 / 3 }[timingGrade] ?? 0;
+  const playerDamage = Math.round(attackDamage(current.attackStrength) * damageMultiplier);
   const enemyHp = Math.max(0, current.enemyHp - playerDamage);
   const enemyBase = 8 + rival.power * 0.14;
   const enemyDamage = enemyHp <= 0 ? 0 : Math.round(enemyBase * (
-    timingGrade === 'perfect' ? 0.28 : timingGrade === 'good' ? 0.50 : timingGrade === 'winded' ? 1.00 : 0.70
+    timingGrade === 'perfect' ? 0.28 : timingGrade === 'good' || timingGrade === 'weak' ? 0.50 : timingGrade === 'winded' ? 1.00 : 0.70
   ));
   const playerHp = Math.max(0, current.playerHp - enemyDamage);
   const playerStamina = Math.min(current.maxStamina, Math.max(0,
-    current.playerStamina + (winded ? 20 : -18 + (timingGrade === 'perfect' ? 10 : timingGrade === 'good' ? 8 : 5))
+    current.playerStamina + (winded ? 20 : -18 + (timingGrade === 'perfect' ? 10 : timingGrade === 'good' || timingGrade === 'weak' ? 8 : 5))
   ));
   const round = current.round + 1;
   const finished = enemyHp <= 0 || playerHp <= 0 || round >= 10;
@@ -281,12 +282,12 @@ export function fightTurn(state, battle, move, timing = 0.5) {
     ? `Сил не хватило на атаку: +${playerStamina - current.playerStamina} запаса сил, получено ${enemyDamage} урона.`
     : timingGrade === 'miss'
       ? `Мимо зоны: атака не прошла, −${current.playerStamina - playerStamina} сил, получено ${enemyDamage} урона.`
-      : `${timingGrade === 'perfect' ? 'Точный тайминг!' : 'Попал в зону.'} Сила нанесла ${playerDamage} урона; получено ${enemyDamage}, запас сил ${playerStamina - current.playerStamina}.`;
+      : `${timingGrade === 'perfect' ? 'В яблочко!' : timingGrade === 'good' ? 'Средняя зона.' : 'Слабая зона.'} Атака нанесла ${playerDamage} урона; получено ${enemyDamage}, запас сил ${playerStamina - current.playerStamina}.`;
   const turnRecord = {
     round, move: 'attack', playerDamage, enemyDamage, playerStamina,
     staminaDelta: playerStamina - current.playerStamina,
     staminaCost: winded ? 0 : 18,
-    timingGrade, timingWindow: window, winded, message,
+    timingGrade, timingWindow: window, damageMultiplier, winded, message,
   };
   const nextBattle = {
     ...current, playerHp, enemyHp, playerStamina, round, finished, result,
