@@ -24,7 +24,7 @@ export const RIVALS = Object.freeze([
 export const SHOP = Object.freeze([
   { id: 'shawarma', name: 'Шаурма чемпиона', description: 'Курица, соус и немного веры в лучшее.', cost: 35, type: 'food', effect: '+30 энергии' },
   { id: 'protein', name: 'Протеин «Батин»', description: 'Вкус печенья. Послевкусие победы.', cost: 90, type: 'boost', effect: '+2 к основному навыку на 3 тренировки' },
-  { id: 'serum', name: 'Жидкий кураж', description: 'Концентрат силы. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 мощи на 1 бой, −15 энергии при выходе на ковёр' },
+  { id: 'serum', name: 'Жидкий кураж', description: 'Концентрат силы. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 силы на 1 бой, −15 энергии при выходе на ковёр' },
   { id: 'wraps', name: 'Бинты авторитета', description: 'Теперь запястья выглядят так, будто у них есть связи.', cost: 140, type: 'gear', effect: '+5 техники навсегда' },
   { id: 'shoes', name: 'Кеды «Неубиваемые»', description: 'Пережили физру, стройку и двух тренеров.', cost: 220, type: 'gear', effect: '+7 выносливости навсегда' },
   { id: 'belt', name: 'Пояс «Батя одобрил»', description: 'Держит спину и самооценку.', cost: 340, type: 'gear', effect: '+9 силы навсегда' },
@@ -33,9 +33,6 @@ export const SHOP = Object.freeze([
 const STATS = ['strength', 'technique', 'endurance'];
 const SECONDARY = { strength: 'endurance', technique: 'strength', endurance: 'technique' };
 const LABELS = { strength: 'сила', technique: 'техника', endurance: 'выносливость' };
-const MOVES = ['push', 'counter', 'grip'];
-const BEATS = { push: 'grip', counter: 'push', grip: 'counter' };
-const MOVE_STAT = { push: 'strength', counter: 'technique', grip: 'endurance' };
 const GEAR_GAINS = { wraps: { technique: 5 }, shoes: { endurance: 7 }, belt: { strength: 9 } };
 const ACHIEVEMENTS = ['first-workout', 'first-win', 'first-gear', 'gym-two', 'legend'];
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -150,75 +147,79 @@ export function buy(state, itemId) {
   return { state: commit(next, message), message, item };
 }
 
-function tell(rival, round) {
-  // The visible tell always determines the right response; patterns vary by rival.
-  const pattern = [0, 2, 1, 2, 0, 1, 0, 2, 1, 0];
-  const index = RIVALS.indexOf(rival);
-  const step = rival.gym >= 2 ? (round * (rival.gym === 3 ? 2 : 1)) % 3 : 0;
-  return MOVES[(pattern[round % pattern.length] + index + step) % 3];
+// Endurance is the only character stat used to size the stamina reservoir.
+// The pool can grow beyond 100; attack cost and recovery do not scale with it.
+export function fightMaxStamina(state) {
+  const endurance = finite(state?.endurance, 8, 1, 500);
+  return 70 + endurance * 2;
+}
+
+function energyCommitted(state) {
+  return Math.min(80, Math.max(0, state.energy - (state.buff?.id === 'serum' ? 15 : 0)));
+}
+
+export function fightStartingStamina(state) {
+  return Math.round(fightMaxStamina(state) * (0.25 + 0.75 * energyCommitted(state) / 80));
 }
 
 export function fightTimingWindow(state, battle) {
   const rival = RIVALS.find(entry => entry.id === battle?.rivalId);
-  if (!rival) return 0.18;
-  const technique = Number.isFinite(state?.technique) ? state.technique : 6;
+  if (!rival) return 0.078;
+  const technique = finite(state?.technique, 6, 1, 500);
   const boss = RIVALS.indexOf(rival) % 3 === 2;
+  // A fresh fighter gets roughly 16% of the track, instead of the old 26–46%.
+  // Technique can more than offset the difficulty increase across gyms.
   return Math.round(clamp(
-    0.19 - rival.gym * 0.014 - (boss ? 0.012 : 0)
-      + clamp((technique - rival.power * 0.5) * 0.0009, -0.012, 0.035),
-    0.13, 0.23,
+    0.073 - rival.gym * 0.006 - (boss ? 0.005 : 0) + Math.min(0.055, technique * 0.0009),
+    0.06, 0.125,
   ) * 1000) / 1000;
 }
 
-function moveOutcome(state, battle, move, timing) {
-  const rival = RIVALS.find(entry => entry.id === battle.rivalId);
-  const window = fightTimingWindow(state, battle);
-  const distance = Math.abs(timing - 0.5);
-  const timingGrade = distance <= window * 0.35 ? 'perfect' : distance <= window ? 'good' : 'miss';
-  const precision = clamp(1 - distance / (window * 2), 0, 1);
-  const ratio = clamp(battle.playerPower / rival.power, 0.35, 2);
-  const countered = move !== 'breathe' && BEATS[move] === battle.telegraph;
-  const caught = move !== 'breathe' && BEATS[battle.telegraph] === move;
-  const matchup = move === 'breathe' ? 'rest' : countered ? 'advantage' : caught ? 'disadvantage' : 'neutral';
-  const tired = battle.playerStamina < 14;
-  const averageStat = (state.strength + state.technique + state.endurance) / 3;
-  const specialty = move === 'breathe' ? 1 : clamp(0.75 + state[MOVE_STAT[move]] / averageStat * 0.25, 0.84, 1.18);
-  const comboBefore = finite(battle.combo, 0, 0, 3);
-  const comboBonus = move === 'breathe' ? 0 : comboBefore * 3;
-  const playerDamage = move === 'breathe' ? 0 : Math.round(clamp(
-    14 * ratio ** 1.6 * (0.82 + precision * 0.22) * (countered ? 1.3 : caught ? 0.8 : 1)
-      * specialty * (1 + comboBonus / 100) * (tired ? 0.7 : 1), 4, 19,
-  ));
-  const enemyHp = Math.max(0, battle.enemyHp - playerDamage);
-  const boss = RIVALS.indexOf(rival) % 3 === 2;
-  const enemyDamage = enemyHp <= 0 ? 0 : Math.round(clamp(
-    17 / ratio ** 0.8 * (move === 'breathe' ? 0.9 : countered ? 0.64 : caught ? 1.15 : 0.93)
-      * (tired && move !== 'breathe' ? 1.12 : 1) * (1 + rival.gym * 0.025 + (boss ? 0.035 : 0))
-      * (timingGrade === 'perfect' ? 0.96 : timingGrade === 'miss' ? 1.04 : 1), 6, 19,
-  ));
-  const staminaCost = clamp(15 - Math.floor(state.endurance / 16), 10, 14);
-  const staminaRecovery = clamp(32 + Math.floor(state.endurance / 20), 32, 40);
-  const playerStamina = move === 'breathe'
-    ? Math.min(100, battle.playerStamina + staminaRecovery)
-    : Math.max(0, battle.playerStamina - staminaCost);
-  const comboAfter = countered && timingGrade !== 'miss' ? Math.min(3, comboBefore + 1) : 0;
+function attackDamage(strength) {
+  return Math.round(clamp(9 + strength * 0.34, 1, 80));
+}
+
+// Previous saves contain the old three-move fight shape. Preserve their HP and
+// round, but start applying the single-attack rules from the next action.
+export function migrateBattle(state, input) {
+  if (!input || typeof input !== 'object' || input.finished) return null;
+  const rival = RIVALS.find(entry => entry.id === input.rivalId);
+  if (!rival || nextRival(state)?.id !== rival.id) return null;
+  if (![input.playerHp, input.enemyHp, input.playerStamina, input.round].every(Number.isFinite)) return null;
+  if (input.playerHp <= 0 || input.playerHp > 100 || input.enemyHp <= 0 || !Number.isInteger(input.round) || input.round < 0 || input.round >= 10 || !Array.isArray(input.history)) return null;
+  const maxStamina = fightMaxStamina(state);
+  const newFormat = Number.isFinite(input.enemyMaxHp) && input.enemyMaxHp >= 100;
+  const enemyMaxHp = newFormat ? finite(input.enemyMaxHp, 100, 100, 300) : 100;
+  if (input.enemyHp > enemyMaxHp || input.playerStamina < 0 || input.playerStamina > Math.max(100, maxStamina)) return null;
   return {
-    playerDamage, enemyDamage, playerStamina, staminaDelta: playerStamina - battle.playerStamina,
-    timingGrade, timingWindow: window, comboBefore, comboAfter, comboBonus, matchup, countered, caught, tired,
+    rivalId: rival.id,
+    playerHp: Math.floor(input.playerHp),
+    enemyHp: Math.floor(input.enemyHp),
+    enemyMaxHp,
+    maxStamina,
+    playerStamina: Math.min(maxStamina, Math.floor(input.playerStamina)),
+    round: input.round,
+    history: input.history.slice(-10),
+    finished: false,
+    result: null,
+    attackStrength: finite(input.attackStrength, state.strength + (input.serum ? 10 : 0), 1, 510),
+    serum: !!input.serum,
+    serumPaidAtStart: !!input.serumPaidAtStart,
   };
 }
 
 export function fightMovePreview(state, battle, move) {
-  if (!battle || ![...MOVES, 'breathe'].includes(move) || !RIVALS.some(entry => entry.id === battle.rivalId)) return null;
-  const low = moveOutcome(state, battle, move, 0);
-  const high = moveOutcome(state, battle, move, 0.5);
+  if (move !== 'attack') return null;
+  const current = migrateBattle(state, battle);
+  if (!current) return null;
+  const winded = current.playerStamina < 18;
   return {
-    staminaDelta: high.staminaDelta,
-    minDamage: low.playerDamage,
-    maxDamage: high.playerDamage,
-    matchup: high.matchup,
-    comboBonus: high.comboBonus,
-    timingWindow: high.timingWindow,
+    staminaCost: winded ? 0 : 18,
+    staminaDelta: Math.min(current.maxStamina, current.playerStamina + (winded ? 20 : -10)) - current.playerStamina,
+    minDamage: 0,
+    maxDamage: winded ? 0 : attackDamage(current.attackStrength),
+    timingWindow: fightTimingWindow(state, current),
+    winded,
   };
 }
 
@@ -227,13 +228,15 @@ export function beginFight(state) {
   if (!rival) return failure(state, 'Ты уже босс всех качалок. Легенда не обязана доказывать.');
   const serum = state.buff?.id === 'serum';
   if (state.energy < (serum ? 35 : 20)) return failure(state, serum ? 'С «Жидким куражом» нужно минимум 35 энергии. Отдохни перед боем.' : 'Для вызова нужно 20 энергии. Отдохни перед боем.');
-  const convertedEnergy = Math.min(80, state.energy - (serum ? 15 : 0));
+  const convertedEnergy = energyCommitted(state);
+  const enemyMaxHp = 100 + RIVALS.indexOf(rival) * 14;
   const battle = {
-    rivalId: rival.id, playerHp: 100, enemyHp: 100, playerStamina: 20 + convertedEnergy, round: 0,
-    telegraph: tell(rival, 0), history: [], combo: 0, finished: false, result: null,
-    playerPower: power(state), serum, serumPaidAtStart: serum,
+    rivalId: rival.id, playerHp: 100, enemyHp: enemyMaxHp, enemyMaxHp,
+    maxStamina: fightMaxStamina(state), playerStamina: fightStartingStamina(state),
+    round: 0, history: [], finished: false, result: null,
+    attackStrength: state.strength + (serum ? 10 : 0), serum, serumPaidAtStart: serum,
   };
-  const message = `${rival.name} принимает вызов. ${convertedEnergy} энергии превращено в запас сил.`;
+  const message = `${rival.name} принимает вызов. ${convertedEnergy} энергии дают ${battle.playerStamina} запаса сил из ${battle.maxStamina}.`;
   return { state: commit({ ...state, energy: state.energy - convertedEnergy - (serum ? 15 : 0), buff: serum ? null : state.buff }, message), battle, message };
 }
 
@@ -241,31 +244,46 @@ export function fightTurn(state, battle, move, timing = 0.5) {
   const fail = error => ({ state, battle, error, message: error });
   if (!battle || typeof battle !== 'object') return fail('Сначала вызови соперника.');
   if (battle.finished) return fail('Этот бой уже завершён.');
-  if (![...MOVES, 'breathe'].includes(move)) return fail('Неизвестный приём.');
-  const rival = RIVALS.find(entry => entry.id === battle.rivalId);
-  if (!rival || nextRival(state)?.id !== rival.id) return fail('Этот соперник уже пройден. Начни новый бой.');
-  if (![battle.playerHp, battle.enemyHp, battle.playerStamina, battle.round, battle.playerPower].every(Number.isFinite) || !MOVES.includes(battle.telegraph) || !Array.isArray(battle.history)) return fail('Состояние боя повреждено. Начни бой заново.');
-  const safeTiming = finite(timing, 0.5, 0, 1, false);
-  const turn = moveOutcome(state, battle, move, safeTiming);
-  const { playerDamage, enemyDamage, playerStamina, countered, caught, tired } = turn;
-  const enemyHp = Math.max(0, battle.enemyHp - playerDamage);
-  const playerHp = Math.max(0, battle.playerHp - enemyDamage);
-  const round = battle.round + 1;
+  if (move !== 'attack') return fail('Теперь на ковре один приём — атаковать.');
+  const current = migrateBattle(state, battle);
+  if (!current) return fail('Состояние боя повреждено или соперник уже пройден. Начни бой заново.');
+  const rival = RIVALS.find(entry => entry.id === current.rivalId);
+  const window = fightTimingWindow(state, current);
+  const distance = Math.abs(finite(timing, 0.5, 0, 1, false) - 0.5);
+  const winded = current.playerStamina < 18;
+  const timingGrade = winded ? 'winded' : distance <= window * 0.35 ? 'perfect' : distance <= window ? 'good' : 'miss';
+  const playerDamage = ['perfect', 'good'].includes(timingGrade) ? attackDamage(current.attackStrength) : 0;
+  const enemyHp = Math.max(0, current.enemyHp - playerDamage);
+  const enemyBase = 8 + rival.power * 0.14;
+  const enemyDamage = enemyHp <= 0 ? 0 : Math.round(enemyBase * (
+    timingGrade === 'perfect' ? 0.28 : timingGrade === 'good' ? 0.50 : timingGrade === 'winded' ? 1.00 : 0.70
+  ));
+  const playerHp = Math.max(0, current.playerHp - enemyDamage);
+  const playerStamina = Math.min(current.maxStamina, Math.max(0,
+    current.playerStamina + (winded ? 20 : -18 + (timingGrade === 'perfect' ? 10 : timingGrade === 'good' ? 8 : 5))
+  ));
+  const round = current.round + 1;
   const finished = enemyHp <= 0 || playerHp <= 0 || round >= 10;
-  // At the bell, the fighter with more remaining HP wins. A draw favors the defending boss.
+  // At the bell, the fighter with more remaining HP wins. A draw favors the defender.
   const result = !finished ? null : enemyHp <= 0 || (playerHp > 0 && round >= 10 && playerHp > enemyHp) ? 'win' : 'loss';
-  const message = move === 'breathe'
-    ? `Перевёл дух: +${playerStamina - battle.playerStamina} запаса сил. Соперник нанёс ${enemyDamage}.`
-    : `${countered ? 'Прочитал соперника!' : caught ? 'Он поймал твой приём.' : 'Лоб в лоб.'} Урон ${playerDamage}${enemyDamage ? `, получено ${enemyDamage}` : ''}${turn.comboBonus ? `. Серия +${turn.comboBonus}%` : ''}${tired ? '. Силы на исходе' : ''}.`;
-  const turnRecord = { round, move, telegraph: battle.telegraph, ...turn, message };
+  const message = winded
+    ? `Сил не хватило на атаку: +${playerStamina - current.playerStamina} запаса сил, получено ${enemyDamage} урона.`
+    : timingGrade === 'miss'
+      ? `Мимо зоны: атака не прошла, −${current.playerStamina - playerStamina} сил, получено ${enemyDamage} урона.`
+      : `${timingGrade === 'perfect' ? 'Точный тайминг!' : 'Попал в зону.'} Сила нанесла ${playerDamage} урона; получено ${enemyDamage}, запас сил ${playerStamina - current.playerStamina}.`;
+  const turnRecord = {
+    round, move: 'attack', playerDamage, enemyDamage, playerStamina,
+    staminaDelta: playerStamina - current.playerStamina,
+    staminaCost: winded ? 0 : 18,
+    timingGrade, timingWindow: window, winded, message,
+  };
   const nextBattle = {
-    ...battle, playerHp, enemyHp, playerStamina, round, combo: turn.comboAfter,
-    telegraph: tell(rival, round), finished, result,
-    history: [...battle.history, turnRecord],
+    ...current, playerHp, enemyHp, playerStamina, round, finished, result,
+    history: [...current.history, turnRecord],
   };
   if (!finished) return { state, battle: nextBattle, message, turn: turnRecord };
   // Battles saved before energy conversion still owe the old deferred serum cost.
-  const drain = battle.serum && !battle.serumPaidAtStart ? 15 : 0;
+  const drain = current.serum && !current.serumPaidAtStart ? 15 : 0;
   if (result === 'win') {
     const wins = state.wins + 1;
     const gym = Math.min(3, Math.floor(wins / 3));
