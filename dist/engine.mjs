@@ -22,11 +22,12 @@ export const RIVALS = Object.freeze([
 ]);
 
 export const SHOP = Object.freeze([
-  { id: 'shawarma', name: 'Шаурма чемпиона', description: 'Курица, соус и немного веры в лучшее.', cost: 35, type: 'food', effect: '+30 энергии' },
-  { id: 'cookies', name: 'Печеньки с молочком', description: 'Домашний уют в раздевалке. Только кружку не оставляй.', cost: 55, type: 'food', effect: '+50 энергии' },
+  { id: 'shawarma', name: 'Шаурма чемпиона', description: 'Курица, соус и немного веры в лучшее.', cost: 35, type: 'food', effect: '+30 энергии и +10 к запасу сил в следующем бою' },
+  { id: 'cookies', name: 'Печеньки с молочком', description: 'Домашний уют в раздевалке. Только кружку не оставляй.', cost: 55, type: 'food', effect: '+50 энергии и +18 к запасу сил в следующем бою' },
   { id: 'protein', name: 'Протеин «Батин»', description: 'Вкус печенья. Послевкусие победы.', cost: 90, type: 'boost', effect: '+2 к основному навыку на 3 тренировки' },
-  { id: 'serum', name: 'Жидкий кураж', description: 'Концентрат силы. После боя захочется прилечь.', cost: 120, type: 'boost', effect: '+10 силы на 1 бой, −15 энергии при выходе на ковёр' },
-  { id: 'trenbolone', name: 'Тренболон «Кольнуть в очко»', description: 'Суровая этикетка для совершенно абсурдного сюжетного буста.', cost: 250, type: 'boost', effect: '+20 силы на 1 бой, −25 энергии при выходе на ковёр' },
+  { id: 'serum', name: 'Жидкий кураж', description: 'Концентрат силы. После боя захочется прилечь.', cost: 120, type: 'prep', effect: '+10 силы на 1 бой, −15 энергии при выходе на ковёр' },
+  { id: 'trenbolone', name: 'Тренболон «Кольнуть в очко»', description: 'Суровая этикетка для совершенно абсурдного сюжетного буста.', cost: 250, type: 'prep', effect: '+20 силы на 1 бой, −25 энергии при выходе на ковёр' },
+  { id: 'chalk', name: 'Магнезия точного хвата', description: 'Руки не скользят, момент поймать легче.', cost: 75, type: 'prep', effect: 'Зона атаки шире на 1 бой' },
   { id: 'wraps', name: 'Бинты авторитета', description: 'Теперь запястья выглядят так, будто у них есть связи.', cost: 140, type: 'gear', effect: '+5 техники навсегда' },
   { id: 'shoes', name: 'Кеды «Неубиваемые»', description: 'Пережили физру, стройку и двух тренеров.', cost: 220, type: 'gear', effect: '+7 выносливости навсегда' },
   { id: 'belt', name: 'Пояс «Батя одобрил»', description: 'Держит спину и самооценку.', cost: 340, type: 'gear', effect: '+9 силы навсегда' },
@@ -68,6 +69,8 @@ export const RANDOM_EVENTS = [
 const EVENT_IDS = new Set(RANDOM_EVENTS.map(event => event.id));
 const LABELS = { strength: 'сила', technique: 'техника', endurance: 'выносливость' };
 const GEAR_GAINS = { wraps: { technique: 5 }, shoes: { endurance: 7 }, belt: { strength: 9 } };
+const PREP = { shawarma: { stamina: 10 }, cookies: { stamina: 18 }, chalk: { timing: 0.018 }, serum: { strength: 10, energyCost: 15 }, trenbolone: { strength: 20, energyCost: 25 } };
+export const MAX_GEAR_LEVEL = 3;
 const ACHIEVEMENTS = ['first-workout', 'first-win', 'first-gear', 'gym-two', 'legend'];
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const finite = (value, fallback, min, max, integer = true) => {
@@ -79,7 +82,8 @@ export function createState() {
   return {
     version: 1, name: 'Дрищ', gym: 0, wins: 0, strength: 8, technique: 6, endurance: 8,
     energy: 100, money: 60, respect: 0, workouts: 0, totalWork: 0, equipment: [],
-    buff: null, log: [], achievements: [], eventCountdown: null, seenEvents: [], startedAt: Date.now(), playSeconds: 0, won: false,
+    gearLevels: { wraps: 0, shoes: 0, belt: 0 }, buff: null, fightPrep: null,
+    log: [], achievements: [], eventCountdown: null, seenEvents: [], startedAt: Date.now(), playSeconds: 0, won: false,
   };
 }
 
@@ -105,21 +109,27 @@ export function sanitizeState(input) {
   clean.energy = finite(input.energy, 100, 0, 100);
   clean.playSeconds = finite(input.playSeconds, 0, 0, 100000000);
   clean.startedAt = finite(input.startedAt, clean.startedAt, 1, 8640000000000000);
-  clean.equipment = [...new Set(Array.isArray(input.equipment) ? input.equipment.filter(id => Object.hasOwn(GEAR_GAINS, id)) : [])];
+  const owned = new Set(Array.isArray(input.equipment) ? input.equipment.filter(id => Object.hasOwn(GEAR_GAINS, id)) : []);
+  for (const id of Object.keys(GEAR_GAINS)) clean.gearLevels[id] = Math.max(owned.has(id) ? 1 : 0, finite(input.gearLevels?.[id], 0, 0, MAX_GEAR_LEVEL));
+  clean.equipment = Object.keys(GEAR_GAINS).filter(id => clean.gearLevels[id] > 0);
   if (input.buff && typeof input.buff === 'object' && ['protein', 'serum', 'trenbolone'].includes(input.buff.id)) {
     const charges = finite(input.buff.charges, 0, 0, input.buff.id === 'protein' ? 3 : 1);
-    if (charges > 0) clean.buff = { id: input.buff.id, charges };
+    if (charges > 0) {
+      if (input.buff.id === 'protein') clean.buff = { id: 'protein', charges };
+      else clean.fightPrep = input.buff.id;
+    }
   }
+  if (!clean.fightPrep && Object.hasOwn(PREP, input.fightPrep)) clean.fightPrep = input.fightPrep;
   clean.log = Array.isArray(input.log) ? input.log.filter(item => typeof item === 'string').slice(-16).map(item => item.slice(0, 240)) : [];
   clean.seenEvents = [...new Set(Array.isArray(input.seenEvents) ? input.seenEvents.filter(id => EVENT_IDS.has(id)) : [])];
-  clean.eventCountdown = clean.seenEvents.length === RANDOM_EVENTS.length || typeof input.eventCountdown !== 'number' ? null : finite(input.eventCountdown, null, 1, 30);
+  clean.eventCountdown = clean.seenEvents.length === RANDOM_EVENTS.length || typeof input.eventCountdown !== 'number' ? null : finite(input.eventCountdown, null, 1, 15);
   // Achievements are derived from actual progress, rather than trusted save flags.
   return award(clean);
 }
 
 export function power(state) {
   const core = (state.strength * 0.46 + state.technique * 0.32 + state.endurance * 0.22) * 0.62 + 4.5;
-  return Math.max(1, Math.round(core + (state.buff?.id === 'serum' ? 10 : state.buff?.id === 'trenbolone' ? 20 : 0)));
+  return Math.max(1, Math.round(core + (PREP[state.fightPrep]?.strength ?? 0)));
 }
 
 export function nextRival(state) {
@@ -131,7 +141,7 @@ function commit(state, message) {
 }
 
 const randomIndex = (length, random) => Math.min(length - 1, Math.max(0, Math.floor(random() * length)));
-const nextEventInterval = random => 10 + randomIndex(21, random);
+const nextEventInterval = random => 7 + randomIndex(9, random);
 
 // Called once after a successful training, rest, or work action.
 export function advanceRandomEvent(state, random = Math.random) {
@@ -149,16 +159,24 @@ export function advanceRandomEvent(state, random = Math.random) {
 
 const failure = (state, error) => ({ state, error });
 
-export function trainingDifficulty(gym, workouts = 0) {
-  const level = Math.min(3, Math.max(0, Math.trunc(gym) || 0));
-  const practice = Math.max(0, Math.trunc(workouts) || 0);
+// Each mini-game follows only the stat it trains. The curve tapers off so
+// high stats stay challenging without making the target impossible to hit.
+function trainingLevel(stat, startingValue) {
+  const value = finite(stat, startingValue, 1, 500);
+  return 3 * Math.max(0, (value - startingValue) / (value + 20));
+}
+
+export function trainingDifficulty(state) {
+  const strength = trainingLevel(state.strength, 8);
+  const technique = trainingLevel(state.technique, 6);
+  const endurance = trainingLevel(state.endurance, 8);
   return {
-    liftSpeed: 72 + level * 12,
-    liftZone: 20 - level * 4,
-    gripLimit: Math.max(1200, 2200 - level * 250 - Math.min(120, practice * 1.5)),
-    cardioLow: 54 + level * 2,
-    cardioHigh: 78 - level * 2,
-    cardioDecay: 7.5 + level * 3.5,
+    liftSpeed: 72 + strength * 12,
+    liftZone: 20 - strength * 4,
+    gripLimit: Math.round(2200 - technique * 250),
+    cardioLow: 54 + endurance * 2,
+    cardioHigh: 78 - endurance * 2,
+    cardioDecay: 7.5 + endurance * 3.5,
   };
 }
 
@@ -195,11 +213,11 @@ export function rest(state) {
   return { state: commit({ ...state, energy: state.energy + restored }, message), message, restored };
 }
 
-// Towel toss pay: a small fixed minimum, the rest only for towels in the basket.
+// Towel toss pay: a guaranteed shift rate plus a hit bonus that grows by gym.
 export const WORK_THROWS = 3;
 export function workPayout(gym = 0) {
   const level = finite(gym, 0, 0, GYMS.length - 1);
-  const base = 10, perHit = 8 + level * 5;
+  const base = 20, perHit = 15 + level * 5;
   return { base, perHit, max: base + perHit * WORK_THROWS };
 }
 
@@ -212,23 +230,31 @@ export function work(state, hits = 0) {
   return { state: commit({ ...state, money: state.money + earned, energy: state.energy - 12, totalWork: state.totalWork + 1 }, message), message, earned, hits: scored };
 }
 
+export function gearCost(state, itemId) {
+  const item = SHOP.find(entry => entry.id === itemId && entry.type === 'gear');
+  return item ? item.cost + (state.gearLevels?.[itemId] ?? (state.equipment.includes(itemId) ? 1 : 0)) * 80 : null;
+}
+
 export function buy(state, itemId) {
   const item = SHOP.find(entry => entry.id === itemId);
   if (!item) return failure(state, 'Товар исчез. Видимо, его съел тренер.');
-  if (item.type === 'gear' && state.equipment.includes(item.id)) return failure(state, 'Эта экипировка уже твоя.');
-  if (item.type === 'boost' && state.buff) return failure(state, 'Сначала используй текущий усилитель.');
-  if (item.type === 'food' && state.energy >= 100) return failure(state, 'Энергии уже полный бак. Прибереги перекус.');
-  if (state.money < item.cost) return failure(state, `Не хватает ${item.cost - state.money} ₽. Подработка ждёт.`);
-  const next = { ...state, money: state.money - item.cost };
+  const level = state.gearLevels?.[item.id] ?? (state.equipment.includes(item.id) ? 1 : 0);
+  if (item.type === 'gear' && level >= MAX_GEAR_LEVEL) return failure(state, 'Экипировка уже улучшена до максимума.');
+  if (item.type === 'gear' && level > state.gym) return failure(state, 'Следующее улучшение откроется в новом зале.');
+  if (item.id === 'protein' && state.buff) return failure(state, 'Сначала используй текущий протеин.');
+  if (item.type !== 'gear' && item.id !== 'protein' && state.fightPrep) return failure(state, 'Подготовка к бою уже выбрана. Сначала проведи бой.');
+  const cost = item.type === 'gear' ? gearCost(state, item.id) : item.cost;
+  if (state.money < cost) return failure(state, `Не хватает ${cost - state.money} ₽. Подработка ждёт.`);
+  const next = { ...state, money: state.money - cost };
   if (item.type === 'food') next.energy = Math.min(100, state.energy + (item.id === 'cookies' ? 50 : 30));
   if (item.id === 'protein') next.buff = { id: 'protein', charges: 3 };
-  if (item.id === 'serum') next.buff = { id: 'serum', charges: 1 };
-  if (item.id === 'trenbolone') next.buff = { id: 'trenbolone', charges: 1 };
+  if (Object.hasOwn(PREP, item.id)) next.fightPrep = item.id;
   if (item.type === 'gear') {
-    next.equipment = [...state.equipment, item.id];
+    next.gearLevels = { ...state.gearLevels, [item.id]: level + 1 };
+    if (level === 0) next.equipment = [...state.equipment, item.id];
     for (const [stat, gain] of Object.entries(GEAR_GAINS[item.id])) next[stat] = Math.min(500, state[stat] + gain);
   }
-  const message = `${item.name}: ${item.effect}.`;
+  const message = `${item.name}${item.type === 'gear' ? `, уровень ${level + 1}` : ''}: ${item.effect}.`;
   return { state: commit(next, message), message, item };
 }
 
@@ -236,7 +262,7 @@ export function buy(state, itemId) {
 // The pool can grow beyond 100; the cost of each attack does not scale with it.
 export function fightMaxStamina(state) {
   const endurance = finite(state?.endurance, 8, 1, 500);
-  return 70 + endurance * 2;
+  return 70 + endurance * 2 + (PREP[state?.fightPrep]?.stamina ?? 0);
 }
 
 function energyCommitted(state) {
@@ -244,23 +270,24 @@ function energyCommitted(state) {
 }
 
 function fightBoost(state) {
-  if (state.buff?.id === 'serum') return { strength: 10, energyCost: 15, name: 'Жидким куражом' };
-  if (state.buff?.id === 'trenbolone') return { strength: 20, energyCost: 25, name: 'Тренболоном' };
-  return { strength: 0, energyCost: 0, name: '' };
+  const prep = PREP[state.fightPrep] ?? {};
+  return { strength: prep.strength ?? 0, energyCost: prep.energyCost ?? 0, name: SHOP.find(item => item.id === state.fightPrep)?.name ?? '' };
 }
 
 export function fightStartingStamina(state) {
-  return Math.round(fightMaxStamina(state) * (0.25 + 0.75 * energyCommitted(state) / 80));
+  const bonus = PREP[state.fightPrep]?.stamina ?? 0;
+  return Math.round((fightMaxStamina(state) - bonus) * (0.25 + 0.75 * energyCommitted(state) / 80)) + bonus;
 }
 
 export function fightTimingWindow(state, battle) {
   const rival = RIVALS.find(entry => entry.id === battle?.rivalId);
   if (!rival) return 0.078;
   const technique = finite(state?.technique, 6, 1, 500);
+  const bonus = battle?.timingBonus ?? PREP[state?.fightPrep]?.timing ?? 0;
   // Rival profiles trade speed against width; technique always widens the zone.
   return Math.round(clamp(
-    rival.timingBaseWindow + Math.min(0.055, technique * 0.0009),
-    0.06, 0.125,
+    rival.timingBaseWindow + Math.min(0.055, technique * 0.0009) + bonus,
+    0.06, 0.125 + bonus,
   ) * 1000) / 1000;
 }
 
@@ -276,7 +303,7 @@ export function migrateBattle(state, input) {
   if (!rival || nextRival(state)?.id !== rival.id) return null;
   if (![input.playerHp, input.enemyHp, input.playerStamina, input.round].every(Number.isFinite)) return null;
   if (input.playerHp <= 0 || input.playerHp > 100 || input.enemyHp <= 0 || !Number.isSafeInteger(input.round) || input.round < 0 || !Array.isArray(input.history)) return null;
-  const maxStamina = fightMaxStamina(state);
+  const maxStamina = finite(input.maxStamina, fightMaxStamina(state), 1, 1100);
   const newFormat = Number.isFinite(input.enemyMaxHp) && input.enemyMaxHp >= 100;
   const enemyMaxHp = newFormat ? finite(input.enemyMaxHp, 100, 100, 300) : 100;
   if (input.enemyHp > enemyMaxHp || input.playerStamina <= 0 || input.playerStamina > Math.max(100, maxStamina)) return null;
@@ -292,6 +319,7 @@ export function migrateBattle(state, input) {
     finished: false,
     result: null,
     attackStrength: finite(input.attackStrength, state.strength + (input.serum ? 10 : 0), 1, 520),
+    timingBonus: finite(input.timingBonus, 0, 0, 0.018, false),
     serum: !!input.serum,
     serumPaidAtStart: !!input.serumPaidAtStart,
   };
@@ -314,7 +342,7 @@ export function beginFight(state) {
   const rival = nextRival(state);
   if (!rival) return failure(state, 'Ты уже босс всех качалок. Легенда не обязана доказывать.');
   const boost = fightBoost(state);
-  const serum = state.buff?.id === 'serum';
+  const serum = state.fightPrep === 'serum';
   const required = 20 + boost.energyCost;
   if (state.energy < required) return failure(state, boost.energyCost ? `С «${boost.name}» нужно минимум ${required} энергии. Отдохни перед боем.` : 'Для вызова нужно 20 энергии. Отдохни перед боем.');
   const convertedEnergy = energyCommitted(state);
@@ -323,10 +351,24 @@ export function beginFight(state) {
     rivalId: rival.id, playerHp: 100, enemyHp: enemyMaxHp, enemyMaxHp,
     maxStamina: fightMaxStamina(state), playerStamina: fightStartingStamina(state),
     round: 0, history: [], finished: false, result: null,
-    attackStrength: state.strength + boost.strength, serum, serumPaidAtStart: serum,
+    attackStrength: state.strength + boost.strength, timingBonus: PREP[state.fightPrep]?.timing ?? 0,
+    serum, serumPaidAtStart: serum,
   };
   const message = `${rival.name} принимает вызов. ${convertedEnergy} энергии дают ${battle.playerStamina} запаса сил из ${battle.maxStamina}.`;
-  return { state: commit({ ...state, energy: state.energy - convertedEnergy - boost.energyCost, buff: boost.strength ? null : state.buff }, message), battle, message };
+  return { state: commit({ ...state, energy: state.energy - convertedEnergy - boost.energyCost, fightPrep: null }, message), battle, message };
+}
+
+export function defeatPenalty(state) {
+  return Math.min(state.money, 20 + state.gym * 10);
+}
+
+export function forfeitFight(state, battle) {
+  const current = migrateBattle(state, battle);
+  if (!current) return failure(state, 'Сейчас нечего заканчивать.');
+  const penalty = defeatPenalty(state);
+  const drain = current.serum && !current.serumPaidAtStart ? 15 : 0;
+  const message = `Сдался. Штраф ${penalty} ₽. Отдохни и возвращайся.`;
+  return { state: commit({ ...state, money: state.money - penalty, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, message), message, penalty };
 }
 
 export function fightTurn(state, battle, move, timing = 0.5) {
@@ -378,8 +420,7 @@ export function fightTurn(state, battle, move, timing = 0.5) {
     const next = { ...state, wins, gym, won: wins === 12, money: state.money + rival.reward, respect: state.respect + respect, energy: Math.min(100, Math.max(0, state.energy + 10 - drain)) };
     return { state: commit(next, finalMessage), battle: nextBattle, message: finalMessage, reward: rival.reward, turn: turnRecord };
   }
-  const finalMessage = playerStamina <= 0 && playerHp > 0
-    ? 'Силы закончились. Деньги на месте, характер крепче. Отдохни, потренируйся и возвращайся.'
-    : 'Этот раунд за соперником. Деньги на месте, характер крепче. Отдохни, потренируйся и возвращайся.';
-  return { state: commit({ ...state, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, finalMessage), battle: nextBattle, message: finalMessage, turn: turnRecord };
+  const penalty = defeatPenalty(state);
+  const finalMessage = `${playerStamina <= 0 && playerHp > 0 ? 'Силы закончились.' : 'Этот бой за соперником.'} Штраф ${penalty} ₽. Отдохни, потренируйся и возвращайся.`;
+  return { state: commit({ ...state, money: state.money - penalty, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, finalMessage), battle: nextBattle, message: finalMessage, penalty, turn: turnRecord };
 }

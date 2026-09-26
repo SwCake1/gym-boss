@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival,
-  train, trainingDifficulty, liftQuality, rest, work, workPayout, buy, beginFight, fightTurn, fightTimingWindow,
+  train, trainingDifficulty, liftQuality, rest, work, workPayout, buy, gearCost, MAX_GEAR_LEVEL,
+  beginFight, fightTurn, forfeitFight, defeatPenalty, fightTimingWindow,
   fightMovePreview, fightMaxStamina, fightStartingStamina, migrateBattle,
   RANDOM_EVENTS, advanceRandomEvent,
 } from '../dist/engine.mjs';
@@ -39,19 +40,39 @@ assert.deepEqual(RIVALS.map(r => r.portrait), Array.from({ length: 12 }, (_, i) 
 assert.ok(RIVALS.every(r => r.timingPeriod > 0 && r.timingBaseWindow > 0));
 assert.ok(RIVALS[2].timingPeriod < RIVALS[5].timingPeriod && RIVALS[2].timingBaseWindow > RIVALS[5].timingBaseWindow,
   'Fast wide and slow narrow bosses should have distinct profiles');
-assert.ok(SHOP.every(item => item.cost > 0 && ['food', 'boost', 'gear'].includes(item.type)));
-const trainingLevels = GYMS.map((_, gym) => trainingDifficulty(gym, gym * 15));
-for (let gym = 1; gym < trainingLevels.length; gym++) {
-  const before = trainingLevels[gym - 1], current = trainingLevels[gym];
+assert.ok(SHOP.every(item => item.cost > 0 && ['food', 'boost', 'prep', 'gear'].includes(item.type)));
+const trainingStart = createState();
+const trainingBase = trainingDifficulty(trainingStart);
+assert.deepEqual(trainingDifficulty({ ...trainingStart, gym: 3, workouts: 1000 }), trainingBase,
+  'Gym and completed workouts must not affect training difficulty');
+const trainingLevels = [8, 20, 40, 80, 500].map(value => trainingDifficulty({ ...trainingStart, strength: value }));
+for (let level = 1; level < trainingLevels.length; level++) {
+  const before = trainingLevels[level - 1], current = trainingLevels[level];
   assert.ok(current.liftSpeed > before.liftSpeed && current.liftZone < before.liftZone);
+  assert.equal(current.gripLimit, trainingBase.gripLimit);
+  assert.equal(current.cardioDecay, trainingBase.cardioDecay);
+}
+const gripLevels = [6, 18, 38, 78, 500].map(value => trainingDifficulty({ ...trainingStart, technique: value }));
+for (let level = 1; level < gripLevels.length; level++) {
+  const before = gripLevels[level - 1], current = gripLevels[level];
   assert.ok(current.gripLimit < before.gripLimit);
+  assert.equal(current.liftZone, trainingBase.liftZone);
+  assert.equal(current.cardioDecay, trainingBase.cardioDecay);
+}
+const cardioLevels = [8, 20, 40, 80, 500].map(value => trainingDifficulty({ ...trainingStart, endurance: value }));
+for (let level = 1; level < cardioLevels.length; level++) {
+  const before = cardioLevels[level - 1], current = cardioLevels[level];
   assert.ok(current.cardioHigh - current.cardioLow < before.cardioHigh - before.cardioLow);
   assert.ok(current.cardioDecay > before.cardioDecay);
+  assert.equal(current.liftZone, trainingBase.liftZone);
+  assert.equal(current.gripLimit, trainingBase.gripLimit);
   assert.ok(current.cardioHigh - current.cardioLow >= 11, 'Cardio zone must remain reachable after one step');
 }
 assert.equal(liftQuality(75, trainingLevels[0].liftZone), 1);
 assert.equal(liftQuality(99, trainingLevels[0].liftZone), 0);
-assert.ok(liftQuality(90, trainingLevels[3].liftZone) < liftQuality(90, trainingLevels[0].liftZone));
+assert.ok(liftQuality(90, trainingLevels.at(-1).liftZone) < liftQuality(90, trainingLevels[0].liftZone));
+assert.ok(trainingLevels.at(-1).liftZone > 8 && gripLevels.at(-1).gripLimit > 1450,
+  'Even at the stat cap the lifting target and reaction timer stay playable');
 
 const initial = freeze(createState());
 assert.equal(power(initial), 9);
@@ -77,16 +98,19 @@ assert.equal(rest(initial).state, initial);
 const tired = freeze({ ...initial, energy: 20 });
 assert.equal(rest(tired).restored, 40);
 assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
-assert.equal(work(tired, 0).earned, 10);
-assert.equal(work(tired, 1).earned, 18);
-assert.equal(work(tired, 3).earned, 34);
-assert.equal(work(tired, 9).earned, 34, 'hits are capped at three throws');
+assert.equal(work(tired, 0).earned, 20);
+assert.equal(work(tired, 1).earned, 35);
+assert.equal(work(tired, 3).earned, 65);
+assert.equal(work(tired, 9).earned, 65, 'hits are capped at three throws');
 assert.equal(work(tired, 2.7).hits, 2, 'partial hits do not round up');
-assert.equal(work(tired, NaN).earned, 10);
-assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 10, 'the minimum stays 10 in every gym');
-assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 79);
-assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 26 ₽ (10 ₽ за смену + 2 × 8 ₽).');
-assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 3. Заработал 10 ₽ — только минимальная ставка.');
+assert.equal(work(tired, NaN).earned, 20);
+assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 20, 'the minimum stays 20 in every gym');
+assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 110);
+assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 50 ₽ (20 ₽ за смену + 2 × 15 ₽).');
+assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 3. Заработал 20 ₽ — только минимальная ставка.');
+assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [65, 80, 95, 110]);
+assert.ok(initial.money + work(tired, 3).earned * 2 >= SHOP.find(item => item.id === 'wraps').cost,
+  'Two perfect shifts plus starting cash buy the first permanent upgrade');
 for (let gym = 0; gym < 4; gym++) {
   const pay = workPayout(gym);
   for (let hits = 0; hits <= 3; hits++) assert.equal(work(freeze({ ...tired, gym }), hits).earned, pay.base + hits * pay.perHit);
@@ -107,6 +131,7 @@ assert.equal(malformed.won, true);
 assert.equal(malformed.endurance, 1);
 assert.equal(malformed.buff, null);
 assert.deepEqual(malformed.equipment, ['belt']);
+assert.equal(malformed.gearLevels.belt, 1);
 assert.deepEqual(malformed.log, ['one']);
 assert.ok(!malformed.achievements.includes('hacked'));
 assert.equal(sanitizeState({ ...initial, version: 999 }).wins, 0);
@@ -117,25 +142,32 @@ assert.equal(RANDOM_EVENTS.length, 30);
 assert.equal(new Set(RANDOM_EVENTS.map(event => event.id)).size, 30);
 let eventState = initial;
 let occurred = [];
-for (let action = 1; action <= 10; action++) {
+for (let action = 1; action <= 7; action++) {
   const result = advanceRandomEvent(freeze(eventState), () => 0);
   eventState = result.state;
   if (result.event) occurred.push({ action, id: result.event.id });
 }
-assert.deepEqual(occurred, [{ action: 10, id: 'E01' }]);
-assert.equal(eventState.eventCountdown, 10);
+assert.deepEqual(occurred, [{ action: 7, id: 'E01' }]);
+assert.equal(eventState.eventCountdown, 7);
 assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(eventState))).seenEvents, ['E01']);
-for (let action = 11; action <= 300; action++) {
+for (let action = 8; action <= 210; action++) {
   const result = advanceRandomEvent(freeze(eventState), () => 0);
   eventState = result.state;
   if (result.event) occurred.push({ action, id: result.event.id });
 }
 assert.equal(occurred.length, 30);
-assert.deepEqual(occurred.map(entry => entry.action), Array.from({ length: 30 }, (_, i) => (i + 1) * 10));
+assert.deepEqual(occurred.map(entry => entry.action), Array.from({ length: 30 }, (_, i) => (i + 1) * 7));
 assert.equal(new Set(occurred.map(entry => entry.id)).size, 30);
 assert.equal(eventState.eventCountdown, null);
 assert.equal(advanceRandomEvent(eventState, () => 0).state, eventState);
-assert.equal(advanceRandomEvent(initial, () => 0.999).state.eventCountdown, 29);
+assert.equal(advanceRandomEvent(initial, () => 0.999).state.eventCountdown, 14);
+let slowEventState = initial;
+for (let action = 1; action <= 15; action++) {
+  const result = advanceRandomEvent(slowEventState, () => 0.999);
+  assert.equal(Boolean(result.event), action === 15);
+  slowEventState = result.state;
+}
+assert.equal(slowEventState.eventCountdown, 15);
 const fifthEvent = advanceRandomEvent({ ...initial, eventCountdown: 1 }, () => 0.15);
 assert.equal(fifthEvent.event.id, 'E05');
 assert.equal(fifthEvent.state.strength, 1);
@@ -147,6 +179,7 @@ assert.equal(burger.change, -75);
 const restoredEvents = sanitizeState({ ...initial, seenEvents: ['E01', 'E01', 'bad'], eventCountdown: 12 });
 assert.deepEqual(restoredEvents.seenEvents, ['E01']);
 assert.equal(restoredEvents.eventCountdown, 12);
+assert.equal(sanitizeState({ ...initial, eventCountdown: 30 }).eventCountdown, 15);
 
 let supplemented = buy(freeze({ ...initial, money: 1000 }), 'protein').state;
 for (let charge = 3; charge >= 1; charge--) {
@@ -160,7 +193,23 @@ assert.equal(buy(freeze(supplemented), 'belt').state.strength, supplemented.stre
 const cookies = buy(freeze({ ...initial, energy: 40, money: 1000 }), 'cookies');
 assert.equal(cookies.state.energy, 90);
 assert.equal(cookies.state.money, 945);
-assert.equal(sanitizeState({ ...initial, buff: { id: 'trenbolone', charges: 1 } }).buff.id, 'trenbolone');
+assert.equal(cookies.state.fightPrep, 'cookies');
+assert.equal(sanitizeState({ ...initial, buff: { id: 'trenbolone', charges: 1 } }).fightPrep, 'trenbolone');
+assert.equal(buy(freeze(cookies.state), 'chalk').state, cookies.state, 'Only one fight preparation can be held');
+assert.ok(buy(freeze({ ...cookies.state, money: 1000 }), 'protein').state.buff, 'Training protein is independent of fight preparation');
+
+// Each gear level adds the same stat gain; higher levels unlock in later gyms.
+let geared = { ...initial, money: 2000 };
+for (let level = 0; level < MAX_GEAR_LEVEL; level++) {
+  assert.equal(gearCost(geared, 'wraps'), 140 + level * 80);
+  if (level > geared.gym) assert.ok(buy(freeze(geared), 'wraps').error.includes('зале'));
+  geared = { ...geared, gym: level, wins: level * 3 };
+  geared = buy(freeze(geared), 'wraps').state;
+  assert.equal(geared.gearLevels.wraps, level + 1);
+  assert.equal(geared.technique, initial.technique + (level + 1) * 5);
+}
+assert.ok(buy(freeze(geared), 'wraps').error.includes('максимума'));
+assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(geared))), geared);
 
 // Endurance sizes the reservoir; it cannot change damage, timing, or recovery.
 assert.equal(fightMaxStamina(initial), 86);
@@ -177,18 +226,29 @@ for (const energy of [20, 40, 60, 80, 100]) {
 const serum = buy(freeze({ ...initial, money: 1000 }), 'serum').state;
 const serumFight = beginFight(freeze(serum));
 assert.equal(serumFight.state.buff, null);
+assert.equal(serumFight.state.fightPrep, null);
 assert.equal(serumFight.battle.attackStrength, initial.strength + 10);
 assert.equal(serumFight.battle.playerStamina, fightStartingStamina(serum));
 assert.equal(serumFight.state.energy, 5);
 assert.ok(fightMovePreview(serumFight.state, serumFight.battle, 'attack').maxDamage > fightMovePreview(initial, beginFight(initial).battle, 'attack').maxDamage);
 const trenbolone = buy(freeze({ ...initial, money: 1000 }), 'trenbolone').state;
-assert.equal(trenbolone.buff.id, 'trenbolone');
+assert.equal(trenbolone.fightPrep, 'trenbolone');
 assert.ok(beginFight({ ...trenbolone, energy: 44 }).error.includes('45'));
 const trenFight = beginFight(freeze(trenbolone));
 assert.equal(trenFight.battle.attackStrength, initial.strength + 20);
 assert.equal(trenFight.battle.playerStamina, fightStartingStamina(trenbolone));
 assert.equal(trenFight.state.energy, 0);
 assert.equal(trenFight.state.buff, null);
+const foodFight = beginFight(freeze(cookies.state));
+assert.equal(foodFight.battle.maxStamina, fightMaxStamina(initial) + 18);
+assert.equal(foodFight.battle.playerStamina, fightStartingStamina(cookies.state));
+assert.equal(foodFight.state.fightPrep, null);
+assert.equal(migrateBattle(sanitizeState(JSON.parse(JSON.stringify(foodFight.state))), JSON.parse(JSON.stringify(foodFight.battle))).maxStamina, foodFight.battle.maxStamina);
+const chalk = buy(freeze({ ...initial, money: 1000 }), 'chalk').state;
+const chalkFight = beginFight(freeze(chalk));
+assert.equal(chalkFight.state.fightPrep, null);
+assert.ok(fightTimingWindow(chalkFight.state, chalkFight.battle) > fightTimingWindow(initial, beginFight(initial).battle));
+assert.equal(migrateBattle(chalkFight.state, JSON.parse(JSON.stringify(chalkFight.battle))).timingBonus, 0.018);
 
 const basic = beginFight(initial);
 assert.equal(basic.battle.enemyMaxHp, 100);
@@ -279,7 +339,16 @@ const impossible = freeze({ ...initial, wins: 11, gym: 3 });
 const lost = fight(impossible);
 assert.equal(lost.battle.result, 'loss');
 assert.equal(lost.state.wins, 11);
+assert.equal(lost.state.money, impossible.money - defeatPenalty(impossible));
+assert.ok(lost.battle.finished);
 assert.ok(rest(lost.state).state.energy >= 20);
+const broke = fight({ ...impossible, money: 0 });
+assert.equal(broke.state.money, 0, 'Losing with no money never creates debt');
+assert.ok(beginFight({ ...rest(broke.state).state, energy: 100 }).battle, 'A broke player can retry for free');
+const surrender = forfeitFight(basic.state, basic.battle);
+assert.equal(surrender.penalty, 20);
+assert.equal(surrender.state.money, basic.state.money - 20);
+assert.ok(forfeitFight(initial, null).error);
 
 // On a failed challenge, a deliberate player completes two balanced workouts
 // before retrying. Stable hit patterns make the length and skill gradient clear.

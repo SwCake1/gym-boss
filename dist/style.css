@@ -228,10 +228,17 @@
 .stat strong,.energy-box strong{white-space:nowrap}
 .energy-box.gained strong{color:var(--orange)}
 .stat-help{position:relative;z-index:2;display:inline-grid;place-items:center;flex:none;width:12px;height:14px;padding:0;border:0;background:transparent;color:#90a8a2;opacity:.5;font:700 10px var(--body);line-height:1}
-.stat-help:hover,.stat-help:focus-visible{color:var(--cyan);opacity:1;background:transparent}
-.stat-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);width:min(230px,calc(100vw - 36px));padding:10px 12px;border:1px solid #71958a;border-radius:3px;background:#102326;color:#e6f1e9;box-shadow:0 10px 24px #0009;font:500 12px/1.45 var(--body);text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s}
+.stat-help:hover,.stat-help:focus,.stat-help:focus-visible{color:var(--cyan);opacity:1;background:transparent}
+.stat-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);width:min(330px,calc(100vw - 36px));padding:11px 12px;border:1px solid #71958a;border-radius:3px;background:#102326;color:#e6f1e9;box-shadow:0 10px 24px #0009;font:500 12px/1.45 var(--body);text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s}
+.stat-tooltip>strong,.stat-hint-line{display:block}
+.stat-tooltip>strong{color:var(--cyan);font-size:13px;margin-bottom:7px}
+.stat-hint-line{padding:7px 0;border-top:1px solid #42635a;font:500 13px/1.5 var(--body)}
+.stat-hint-line b{color:var(--cyan);font-weight:700}
 .stat-help:hover .stat-tooltip,.stat-help:focus .stat-tooltip{opacity:1;visibility:visible;transform:translateY(0)}
 .stat:last-child .stat-tooltip,.energy-box .stat-tooltip{left:auto;right:0}
+@media(max-width:520px){.stat-tooltip{width:min(280px,calc(100vw - 24px))}.stat:nth-child(2) .stat-tooltip{left:50%;transform:translate(-50%,4px)}.stat:nth-child(2) .stat-help:hover .stat-tooltip,.stat:nth-child(2) .stat-help:focus .stat-tooltip{transform:translate(-50%,0)}}
+@media(max-width:400px){.energy-box .stat-tooltip{right:-22vw}}
+@media(max-width:338px){.power-readout .stat-tooltip,.stat:first-child .stat-tooltip{left:-30px}}
 
 /* Thirty event scenes share two small 5-by-3 image atlases. */
 .random-event-dialog{text-align:center}
@@ -253,11 +260,15 @@
 .shop-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:10px}
 .shop-details{min-width:0}
 .shop-art{width:58px;height:58px;border:1px solid #5b746c;border-radius:4px;background:#122124 url('./assets/shop-items.jpg') no-repeat;background-size:300% 200%;box-shadow:0 4px 12px #0005}
+.shop-art-chalk{display:grid;place-items:center;color:var(--cyan);font-size:38px;background:#203a36}
 @media(max-width:520px){.shop-item{grid-template-columns:44px minmax(0,1fr) auto;gap:8px;padding:10px}.shop-art{width:44px;height:44px}}
 
 /* Portrait buttons reveal the full square crop without interrupting the fight. */
 .portrait-trigger{position:relative;display:block;padding:0;cursor:zoom-in}
 .portrait-trigger:hover{border-color:var(--cyan);filter:brightness(1.13)}
+/* Size each square atlas from the frame height, then crop the sides without stretching it. */
+.rival-portrait,.portrait-art{position:relative;overflow:hidden}
+.rival-portrait::before,.portrait-art::before,.fighter-image.enemy::before{content:'';position:absolute;left:50%;top:var(--sprite-top);bottom:var(--sprite-bottom);height:var(--sprite-height);aspect-ratio:1;background:var(--sprite-image) center/100% 100% no-repeat;transform:translateX(var(--sprite-x));pointer-events:none}
 /* Show both complete fighters at their source aspect ratios during a bout. */
 .fight-stage>div{min-width:0}
 .fight-stage .fighter-image{width:100%;height:auto;aspect-ratio:1;background-color:#102026;background-repeat:no-repeat}
@@ -351,6 +362,25 @@
 /* Override the generic campaign span size so milestone names fit the route. */
 .campaign-strip .campaign-stop-name{font-family:var(--body);font-size:11px;line-height:1.2}
 @media(max-width:640px){.campaign-strip .campaign-stop-name{width:60px;font-size:9px;line-height:1.15;white-space:normal}}
+.campaign-mobile-route{display:none}
+.sound-icon{display:block;width:20px;height:20px;margin:auto}
+.exercise-icon{overflow:hidden}
+.exercise-icon img{display:block;width:100%;height:100%;object-fit:contain;transform:scale(1.35)}
+@media(max-width:640px){
+  .campaign-strip{padding:14px 0 16px}
+  .campaign-strip>div.campaign-progress{grid-template-columns:minmax(0,1fr) auto;gap:12px;min-height:0;align-items:center}
+  .campaign-progress>span{font-size:11px;letter-spacing:1.3px}
+  .campaign-progress strong{font-size:12px}
+  .campaign-route{display:none}
+  .campaign-mobile-route{display:grid;grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;width:100%}
+  .campaign-mobile-stop{display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-width:0;min-height:42px;padding:8px 7px 7px;border:1px solid #38514f;border-radius:4px;background:#1a2b2e}
+  .campaign-mobile-stop.current{border-color:var(--orange);background:#2a302c}
+  .campaign-mobile-stop.done{border-color:#669789}
+  .campaign-mobile-stop span{display:block;min-width:0;font:700 10px/1.15 var(--body);color:#879c9c;overflow-wrap:break-word}
+  .campaign-mobile-stop.current span,.campaign-mobile-stop.done span{color:var(--ink)}
+  .campaign-mobile-stop i{display:block;position:relative;height:3px;background:#405452;border-radius:4px;overflow:hidden}
+  .campaign-mobile-stop i::after{content:'';display:block;width:var(--progress);height:100%;background:var(--orange)}
+}
 
 /* The final boss reveal keeps the full crowd visible while the music and lights play. */
 #game-dialog:has(.victory-screen){width:min(820px,calc(100% - 28px));border-color:#ad8b56}
@@ -438,6 +468,8 @@
 /* Quick recovery and paid-work games. */
 .utility-game .dialog-copy{max-width:500px;line-height:1.5;margin:10px 0 14px}
 .utility-game .training-reward{margin-bottom:18px}
+.rest-game .training-reward{margin-bottom:9px}
+.rest-instruction{margin:0 0 16px;color:#c7d8d2;font-size:14px;line-height:1.45}
 .utility-game-status{min-height:24px;margin-top:18px;color:var(--gold);font-weight:800;letter-spacing:.3px}
 .rest-playfield{display:block;position:relative;isolation:isolate;overflow:hidden;width:100%;height:270px;border:2px solid #648f83;border-radius:12px;background:radial-gradient(circle at 25% 15%,#39806b88,transparent 40%),radial-gradient(circle at 80% 80%,#d39a5955,transparent 43%),linear-gradient(135deg,#173b3b,#172b32 70%);box-shadow:inset 0 0 42px #071c22,0 8px 22px #0006;touch-action:manipulation}
 .rest-playfield:hover:not(:disabled){border-color:var(--cyan);filter:brightness(1.08)}
