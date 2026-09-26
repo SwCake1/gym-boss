@@ -3,6 +3,7 @@ import {
   GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival,
   train, trainingDifficulty, liftQuality, rest, work, buy, beginFight, fightTurn, fightTimingWindow,
   fightMovePreview, fightMaxStamina, fightStartingStamina, migrateBattle,
+  RANDOM_EVENTS, advanceRandomEvent,
 } from '../dist/engine.mjs';
 
 function freeze(value) {
@@ -23,7 +24,7 @@ function fight(input, timings = [0.5]) {
     assert.ok(!result.error, result.error);
     state = result.state;
     battle = result.battle;
-    assert.ok(battle.round <= 10, 'Fights cannot continue forever');
+    assert.ok(battle.round < 1000, 'A fight must eventually end through health or stamina');
     assert.ok(battle.playerHp >= 0 && battle.enemyHp >= 0);
     assert.ok(battle.playerStamina >= 0 && battle.playerStamina <= battle.maxStamina);
   }
@@ -35,6 +36,9 @@ assert.equal(RIVALS.length, 12);
 assert.equal(new Set(RIVALS.map(r => r.id)).size, 12);
 assert.ok(RIVALS.every(r => r.gym >= 0 && r.gym <= 3));
 assert.deepEqual(RIVALS.map(r => r.portrait), Array.from({ length: 12 }, (_, i) => i));
+assert.ok(RIVALS.every(r => r.timingPeriod > 0 && r.timingBaseWindow > 0));
+assert.ok(RIVALS[2].timingPeriod < RIVALS[5].timingPeriod && RIVALS[2].timingBaseWindow > RIVALS[5].timingBaseWindow,
+  'Fast wide and slow narrow bosses should have distinct profiles');
 assert.ok(SHOP.every(item => item.cost > 0 && ['food', 'boost', 'gear'].includes(item.type)));
 const trainingLevels = GYMS.map((_, gym) => trainingDifficulty(gym, gym * 15));
 for (let gym = 1; gym < trainingLevels.length; gym++) {
@@ -70,6 +74,12 @@ for (const [kind, otherStats] of [
 assert.ok(beginFight(freeze({ ...initial, energy: 19 })).error.includes('20'));
 assert.ok(work(freeze({ ...initial, energy: 11 })).error.includes('12'));
 assert.equal(rest(initial).state, initial);
+const tired = freeze({ ...initial, energy: 20 });
+assert.equal(rest(tired).restored, 40);
+assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
+assert.equal(work(tired, 0).earned, 20);
+assert.equal(work(tired, 1).earned, 35);
+assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 65);
 
 const malformed = sanitizeState({
   ...initial, name: '<>\u0000  ', wins: 99, gym: -8, won: false, strength: Infinity, technique: NaN,
@@ -90,6 +100,41 @@ assert.ok(!malformed.achievements.includes('hacked'));
 assert.equal(sanitizeState({ ...initial, version: 999 }).wins, 0);
 assert.equal(sanitizeState(null).name, 'Дрищ');
 assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(initial))), initial);
+
+assert.equal(RANDOM_EVENTS.length, 30);
+assert.equal(new Set(RANDOM_EVENTS.map(event => event.id)).size, 30);
+let eventState = initial;
+let occurred = [];
+for (let action = 1; action <= 10; action++) {
+  const result = advanceRandomEvent(freeze(eventState), () => 0);
+  eventState = result.state;
+  if (result.event) occurred.push({ action, id: result.event.id });
+}
+assert.deepEqual(occurred, [{ action: 10, id: 'E01' }]);
+assert.equal(eventState.eventCountdown, 10);
+assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(eventState))).seenEvents, ['E01']);
+for (let action = 11; action <= 300; action++) {
+  const result = advanceRandomEvent(freeze(eventState), () => 0);
+  eventState = result.state;
+  if (result.event) occurred.push({ action, id: result.event.id });
+}
+assert.equal(occurred.length, 30);
+assert.deepEqual(occurred.map(entry => entry.action), Array.from({ length: 30 }, (_, i) => (i + 1) * 10));
+assert.equal(new Set(occurred.map(entry => entry.id)).size, 30);
+assert.equal(eventState.eventCountdown, null);
+assert.equal(advanceRandomEvent(eventState, () => 0).state, eventState);
+assert.equal(advanceRandomEvent(initial, () => 0.999).state.eventCountdown, 29);
+const fifthEvent = advanceRandomEvent({ ...initial, eventCountdown: 1 }, () => 0.15);
+assert.equal(fifthEvent.event.id, 'E05');
+assert.equal(fifthEvent.state.strength, 1);
+assert.equal(fifthEvent.change, -7);
+const burger = advanceRandomEvent({ ...initial, eventCountdown: 1, energy: 75 }, () => 18.5 / 30);
+assert.equal(burger.event.id, 'E19');
+assert.equal(burger.state.energy, 0);
+assert.equal(burger.change, -75);
+const restoredEvents = sanitizeState({ ...initial, seenEvents: ['E01', 'E01', 'bad'], eventCountdown: 12 });
+assert.deepEqual(restoredEvents.seenEvents, ['E01']);
+assert.equal(restoredEvents.eventCountdown, 12);
 
 let supplemented = buy(freeze({ ...initial, money: 1000 }), 'protein').state;
 for (let charge = 3; charge >= 1; charge--) {
@@ -135,7 +180,7 @@ assert.equal(trenFight.state.buff, null);
 
 const basic = beginFight(initial);
 assert.equal(basic.battle.enemyMaxHp, 100);
-assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').staminaCost, 18);
+assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').staminaCost, 8);
 assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').minDamage, 0);
 assert.equal(fightMovePreview(basic.state, basic.battle, 'push'), null);
 assert.ok(fightTurn(basic.state, basic.battle, 'push').error);
@@ -159,13 +204,18 @@ for (const offset of [-1, 1]) {
 }
 assert.ok(perfect.turn.enemyDamage < good.turn.enemyDamage && good.turn.enemyDamage < miss.turn.enemyDamage);
 assert.deepEqual(perfect.turn, perfect.battle.history.at(-1));
-assert.equal(perfect.turn.staminaCost, 18);
+assert.equal(perfect.turn.staminaCost, 8);
 assert.equal(perfect.battle.playerStamina, 78);
-const winded = fightTurn(basic.state, { ...basic.battle, playerStamina: 10 }, 'attack', 0.5);
-assert.equal(winded.turn.timingGrade, 'winded');
-assert.equal(winded.turn.playerDamage, 0);
-assert.equal(winded.battle.playerStamina, 30);
-assert.equal(fightMovePreview(basic.state, { ...basic.battle, playerStamina: 10 }, 'attack').staminaCost, 0);
+assert.equal(good.turn.staminaCost, 10);
+assert.equal(miss.turn.staminaCost, 13);
+const exhausted = fightTurn(basic.state, { ...basic.battle, playerStamina: 8 }, 'attack', 0.5);
+assert.equal(exhausted.turn.playerDamage, perfect.turn.playerDamage);
+assert.equal(exhausted.battle.playerStamina, 0);
+assert.equal(exhausted.battle.result, 'loss');
+const lastBlow = fightTurn(basic.state, { ...basic.battle, enemyHp: perfect.turn.playerDamage, playerStamina: 8 }, 'attack', 0.5);
+assert.equal(lastBlow.battle.playerStamina, 0);
+assert.equal(lastBlow.battle.result, 'win', 'A finishing blow wins even when stamina reaches zero');
+assert.equal(migrateBattle(basic.state, { ...basic.battle, playerStamina: 0 }), null);
 
 // Strength alone changes attack damage. Technique only changes timing width.
 const stronger = beginFight({ ...initial, strength: 80 }).battle;
@@ -175,9 +225,23 @@ assert.ok(fightMovePreview(initial, stronger, 'attack').maxDamage > fightMovePre
 assert.equal(fightMovePreview(initial, technical, 'attack').maxDamage, fightMovePreview(initial, basic.battle, 'attack').maxDamage);
 assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').maxDamage, fightMovePreview(initial, basic.battle, 'attack').maxDamage);
 assert.ok(fightTimingWindow({ ...initial, technique: 80 }, basic.battle) > fightTimingWindow(initial, basic.battle));
-assert.ok(fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[11].id }) < fightTimingWindow(initial, basic.battle));
+assert.ok(fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[5].id }) < fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[2].id }));
 assert.ok(fightTimingWindow(initial, basic.battle) < 0.1, 'Initial timing zone is substantially narrower than the old one');
-assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').staminaDelta, -10, 'Endurance does not change per-turn stamina economics');
+assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').staminaDelta, -8, 'Endurance does not change per-turn stamina economics');
+
+// A long fight remains active after ten attacks and can be restored from a save.
+const longState = { ...initial, wins: 11, gym: 3, strength: 1, endurance: 80 };
+let longFight = beginFight(longState);
+for (let turn = 0; turn < 11; turn++) {
+  longFight = fightTurn(longFight.state, longFight.battle, 'attack', 0.5);
+  assert.ok(!longFight.error);
+  if (turn === 9) {
+    assert.equal(longFight.battle.round, 10);
+    assert.equal(longFight.battle.finished, false);
+    assert.equal(migrateBattle(longFight.state, longFight.battle).round, 10);
+  }
+}
+assert.equal(longFight.battle.round, 11);
 
 // A pre-update active battle is migrated without resetting progress.
 const oldSavedBattle = {

@@ -5,7 +5,8 @@
 - This directory (`site/`) is the Git repository. Run Git commands here, not in its parent directory.
 - `dist/` is the published static site. There is no build step or package manager.
 - `dist/engine.mjs` owns game rules, state validation, purchases, and combat. `dist/app.mjs` owns DOM rendering, input, timers, browser storage, and sound.
-- `tests/engine.test.mjs` covers the game engine. Progress and an active fight are saved in browser `localStorage`.
+- `dist/towel.mjs` is the towel-toss side job: a DOM-free cloth simulation (tested in Node) plus a canvas renderer mounted by `app.mjs`. Payout rules stay in `engine.mjs` (`work`).
+- `tests/engine.test.mjs` covers the game engine; `tests/towel.test.mjs` checks that every towel layout is solvable and the cloth stays stable. Progress and an active fight are saved in browser `localStorage`.
 
 ## Before editing
 
@@ -21,6 +22,7 @@ Run from this directory:
 node --check dist/app.mjs
 node --check dist/engine.mjs
 node tests/engine.test.mjs
+node tests/towel.test.mjs
 git diff --check
 ```
 

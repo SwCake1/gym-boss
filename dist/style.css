@@ -158,6 +158,13 @@
   .arena-scene .hero-name{font-size:clamp(31px,3vw,43px);line-height:.94;margin:0 0 12px}
   .arena-scene .scene-caption p{font-size:14px;line-height:1.4}
 }
+/* The contained portrait has side edges at tablet widths; fade it into the scene. */
+@media(min-width:761px) and (max-width:1199px){
+  .arena-scene .hero-image{
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 20%,#000 70%,transparent 100%);
+    mask-image:linear-gradient(90deg,transparent 0%,#000 20%,#000 70%,transparent 100%);
+  }
+}
 @media(max-width:520px){.arena-scene .hero-image{object-position:center 20%}}
 
 /* Fight resources and round result stay visually distinct from the timing track. */
@@ -225,6 +232,18 @@
 .stat-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);width:min(230px,calc(100vw - 36px));padding:10px 12px;border:1px solid #71958a;border-radius:3px;background:#102326;color:#e6f1e9;box-shadow:0 10px 24px #0009;font:500 12px/1.45 var(--body);text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s}
 .stat-help:hover .stat-tooltip,.stat-help:focus .stat-tooltip{opacity:1;visibility:visible;transform:translateY(0)}
 .stat:last-child .stat-tooltip,.energy-box .stat-tooltip{left:auto;right:0}
+
+/* Thirty event scenes share two small 5-by-3 image atlases. */
+.random-event-dialog{text-align:center}
+.random-event-art{width:min(205px,45vw);aspect-ratio:2/3;margin:8px auto 18px;border:1px solid #597269;border-radius:4px;background-color:#16282a;background-size:500% 300%;background-repeat:no-repeat;box-shadow:0 12px 30px #0007}
+.random-event-dialog h2{font-size:clamp(26px,5vw,39px);margin-bottom:10px}
+.random-event-dialog .dialog-copy{font-size:16px;line-height:1.45;margin:0 auto 16px;max-width:440px}
+.random-event-effect{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px;padding:13px 16px;background:#213a34;border-left:3px solid var(--cyan);text-align:left}
+.random-event-effect.negative{background:#382b2a;border-left-color:var(--orange)}
+.random-event-effect span{color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1.2px}
+.random-event-effect strong{font-size:19px;color:var(--cyan)}
+.random-event-effect.negative strong{color:var(--orange)}
+@media(max-height:720px){.random-event-art{width:min(150px,35vw)}}
 
 /* Crop square gym scenes within wide panels without stretching them. */
 .gym-panorama{position:relative;overflow:hidden;background:none}
@@ -294,7 +313,7 @@
 .damage-float.landed{color:var(--orange)}
 #enemy-damage.landed{color:var(--cyan)}
 .damage-float.zero{color:#d6d9d1}
-.damage-float.rise{animation:damage-rise .95s ease-out both}
+.damage-float.rise{animation:damage-rise 1.8s ease-out both}
 @keyframes damage-rise{0%{opacity:0;transform:translate(-50%,10px) scale(.8)}18%{opacity:1;transform:translate(-50%,-7px) scale(1.15)}72%{opacity:1;transform:translate(-50%,-26px)}100%{opacity:0;transform:translate(-50%,-43px)}}
 .fighter-image.strike-forward{animation:strike-forward .52s ease-out}
 .fighter-image.strike-back{animation:strike-back .52s ease-out}
@@ -321,7 +340,7 @@
 .floating-gains.gain-pop{animation-duration:2.6s}
 
 /* At tablet widths, give resources one row and the three stats a full row. */
-@media(min-width:521px) and (max-width:760px){
+@media(min-width:521px) and (max-width:1050px){
   .character-panel{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;align-items:start;padding:16px 20px}
   .character-panel .power-readout{grid-column:1;grid-row:1;min-width:0;align-self:center}
   .character-panel .energy-box{grid-column:2;grid-row:1;min-width:0;align-self:center;border-top:0;border-left:1px solid #42635a;padding:0 0 0 20px}
@@ -415,3 +434,105 @@
 .cardio-scale{display:flex;justify-content:space-between;margin-top:6px;font:700 9px var(--body);letter-spacing:.3px;color:var(--muted)}
 .cardio-scale span:nth-child(2){color:var(--cyan)}
 @media(max-width:640px){.training-dialog{padding:20px}.training-dialog .workout-stage{gap:12px}.training-dialog .training-gif{max-height:155px}.lift-game{min-height:165px;padding:10px}.lift-track{height:140px}.grip-cue{min-height:78px}.grip-cue span{font-size:50px;min-width:50px}.grip-cue strong{font-size:19px}}
+
+/* Quick recovery and paid-work games. */
+.utility-game .dialog-copy{max-width:500px;line-height:1.5;margin:10px 0 14px}
+.utility-game .training-reward{margin-bottom:18px}
+.utility-game-status{min-height:24px;margin-top:18px;color:var(--gold);font-weight:800;letter-spacing:.3px}
+.rest-playfield{display:block;position:relative;isolation:isolate;overflow:hidden;width:100%;height:270px;border:2px solid #648f83;border-radius:12px;background:radial-gradient(circle at 25% 15%,#39806b88,transparent 40%),radial-gradient(circle at 80% 80%,#d39a5955,transparent 43%),linear-gradient(135deg,#173b3b,#172b32 70%);box-shadow:inset 0 0 42px #071c22,0 8px 22px #0006;touch-action:manipulation}
+.rest-playfield:hover:not(:disabled){border-color:var(--cyan);filter:brightness(1.08)}
+.rest-playfield:disabled{opacity:1;cursor:default}
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.rest-orb{position:absolute;top:0;left:0;width:54px;height:54px;border-radius:50%;pointer-events:none;will-change:transform;background:radial-gradient(circle at 29% 24%,#ffffffed 0 8%,#b5ffee 11%,#72d8b7 42%,#2a8c76 72%,#184f53 100%);box-shadow:inset -8px -8px 16px #103e5377,0 8px 17px #0008,0 0 19px #79d8bb66}
+.rest-orb.orb-1{background:radial-gradient(circle at 29% 24%,#fff 0 8%,#ffe5a8 12%,#eabf7d 43%,#a2694d 75%,#624639 100%);box-shadow:inset -8px -8px 16px #61363077,0 8px 17px #0008,0 0 18px #eabf7d55}
+.rest-orb.orb-2{background:radial-gradient(circle at 29% 24%,#fff 0 8%,#d8d9ff 12%,#a7a5e5 43%,#565c9d 75%,#343b6a 100%);box-shadow:inset -8px -8px 16px #35315e77,0 8px 17px #0008,0 0 18px #a7a5e555}
+.rest-ripple,.rest-spark{position:absolute;z-index:3;pointer-events:none}
+.rest-ripple{width:28px;height:28px;border:3px solid #d8fff0;border-radius:50%;transform:translate(-50%,-50%);animation:rest-ripple .65s ease-out both}
+.rest-spark{width:8px;height:8px;background:var(--gold);border-radius:50%;box-shadow:0 0 10px var(--gold);animation:rest-spark .7s ease-out both}
+.rest-pips{display:flex;justify-content:center;gap:9px;margin-top:16px}.rest-pips i{width:29px;height:7px;background:#375552;border-radius:99px;transition:background .2s,transform .25s}.rest-pips i.filled{background:var(--gold);transform:scale(1.12);box-shadow:0 0 12px #e4b56d88}
+@keyframes rest-ripple{to{transform:translate(-50%,-50%) scale(8);opacity:0}}
+@keyframes rest-spark{to{transform:translate(var(--dx),var(--dy));opacity:0}}
+#game-dialog:has(.work-game){width:min(980px,calc(100% - 24px))}
+.work-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
+.work-heading h2{margin-bottom:0}
+.work-game .training-reward{margin:0}
+.work-game .dialog-copy{max-width:640px;margin:10px 0 14px}
+.towel-stage{position:relative;border-radius:14px;padding:2px;background:linear-gradient(135deg,#ff653b66,#8ddbcc40 45%,#e4b56d55);box-shadow:0 18px 40px #000a}
+.towel-canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;background:#0d1a1e;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.towel-canvas:active{cursor:grabbing}.towel-canvas:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.towel-controls{display:flex;align-items:center;gap:14px;margin-top:14px}
+.towel-keys{margin-left:auto;color:#7f9c97;font-size:10px;font-weight:900;letter-spacing:.08em}
+.towel-throw{flex:none;border:1px solid #ffb59a;border-radius:6px;background:var(--orange);color:#1b0d08;padding:10px 16px;font:900 14px var(--display);letter-spacing:.04em;cursor:pointer;box-shadow:0 4px 0 #9c3316}
+.towel-throw:hover:not(:disabled),.towel-throw:focus-visible{background:#ff8a66;transform:translateY(-2px);box-shadow:0 6px 0 #9c3316}
+.towel-throw:disabled{opacity:.45;cursor:default;box-shadow:none}
+.towel-pips{display:flex;gap:8px}
+.towel-pips i{width:38px;height:10px;border-radius:9px;background:#2a4247;box-shadow:inset 0 1px 2px #0008;transition:background .25s,transform .25s,box-shadow .25s}
+.towel-pips i.hit{background:#baf7cb;box-shadow:0 0 14px #baf7cb99;transform:scale(1.1)}
+.towel-pips i.rim{background:#f8db99}
+.towel-pips i.miss{background:#d69072}
+.work-game .utility-game-status{margin-top:12px;min-height:22px}
+@media(max-width:520px){.rest-playfield{height:220px}.towel-keys{display:none}.towel-throw{margin-left:auto;font-size:12px;padding:9px 12px}.towel-pips i{width:28px}.work-game .dialog-copy{font-size:14px}}
+
+
+/* Battle poster: the venue sets the scene; framed portraits own their photo backgrounds. */
+#game-dialog:has(.fight-screen){width:min(860px,calc(100% - 24px));max-height:96dvh}
+.fight-screen{padding:23px 28px 21px}
+.fight-header{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:14px}
+.fight-eyebrow{display:block;margin-bottom:5px;color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase}
+.fight-header h2{margin:0;font-size:clamp(27px,4vw,41px);line-height:.95}
+.fight-round{flex:none;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1px;text-align:right}
+.fight-round strong{display:block;margin-top:2px;color:var(--ink);font:800 24px var(--display);letter-spacing:0}
+.fight-scene.fight-stage{position:relative;display:block;height:325px;margin:0;overflow:hidden;border:1px solid #4e615c;border-radius:4px;background:#142529;isolation:isolate}
+.fight-scene::before{content:'';position:absolute;inset:-5px;background:url('./assets/locations.jpg') var(--gym-position)/200% 200% no-repeat;filter:brightness(.46) saturate(.7) blur(1px);transform:scale(1.035)}
+.fight-scene::after{content:'';position:absolute;z-index:1;inset:0;pointer-events:none;background:linear-gradient(90deg,#0b181da6,transparent 30%,transparent 70%,#0b181da6),linear-gradient(0deg,#0714189c,transparent 45%)}
+.fight-scene .fighter-image{position:absolute;z-index:2;top:13px;bottom:13px;width:30%;height:auto;aspect-ratio:auto;border:2px solid var(--cyan);border-bottom-width:5px;border-radius:2px;background-color:#1a2b2e;background-repeat:no-repeat;box-shadow:0 16px 35px #000b,0 0 0 5px #0b1b20a8;overflow:hidden;-webkit-mask-image:none;mask-image:none;transition:filter .2s,box-shadow .2s}
+.fight-scene .fighter-image.player{left:13%;width:30%;background-size:cover;background-position:center 22%;rotate:-2deg}
+.fight-scene .fighter-image.enemy,.fight-scene .fighter-image.enemy.portrait-trigger{right:13%;left:auto;width:30%;height:auto;border-color:var(--orange);background-color:#1a2b2e;background-size:200% 200%;rotate:2deg;filter:none}
+.fight-scene .fighter-image.enemy:hover{filter:brightness(1.12);box-shadow:0 16px 35px #000b,0 0 0 5px #26413fa8}
+.fight-scene .fight-portrait-index{position:absolute;top:10px;bottom:auto;left:10px;right:auto;z-index:2;padding:5px 8px;border-radius:2px;background:#0d2024e8;color:var(--cyan);font:800 10px var(--body);letter-spacing:1px;text-shadow:none}
+.fight-scene .enemy .fight-portrait-index{color:#ff9a7c}
+.fight-scene .fight-portrait-name{position:absolute;z-index:2;left:0;right:0;bottom:0;padding:32px 11px 10px;background:linear-gradient(0deg,#08171af2,#08171a00);color:#fff;font:900 clamp(16px,2.2vw,23px)/.98 var(--display);text-align:left;text-shadow:0 2px 6px #000}
+.fight-scene-vs{position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-9deg);color:#f0dfbf;font:italic 900 36px var(--display);letter-spacing:-2px;text-shadow:0 3px 12px #000,0 0 24px #000}
+.fight-scene .damage-float{z-index:5;bottom:64px;left:28%}
+.fight-scene #enemy-damage{left:73%}
+.fight-vitals{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:13px 2px 15px;border-bottom:1px solid var(--line)}
+.fight-vitals .hp-label{font-size:11px}
+.fight-vitals .hp-label strong{font-size:13px}
+.fight-control{padding:14px 16px 15px;margin-top:14px;background:#1b3033;border:1px solid #49615b;border-radius:5px}
+.fight-control .stamina-meter{margin:0}
+.fight-control .stamina-track{height:8px;margin-top:6px}
+.fight-timing-heading{display:flex;justify-content:flex-end;align-items:baseline;gap:14px;margin-top:17px}
+.fight-timing-heading strong{font-size:12px;letter-spacing:1px}
+.fight-timing-heading span{color:#a6b8b6;font-size:11px;font-weight:800;letter-spacing:.3px;text-align:right}
+.fight-control .fight-timing-track{height:22px;margin:8px 0 12px}
+.fight-control .attack-button{margin:0;min-height:57px}
+.fight-log{margin-top:10px;padding:10px 13px;background:#16282c}
+.fight-log-note{min-height:2.8em}
+.fight-log-placeholder{font-size:12px}
+.fight-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:10px;color:var(--muted);font-size:11px}
+.fight-footer .battle-hint{line-height:1.35}
+.fight-footer .text-button{flex:none;text-decoration:underline;text-underline-offset:3px}
+.fight-rules{margin-top:8px;color:var(--muted);font-size:11px}
+.fight-rules summary{width:max-content;cursor:pointer}
+.fight-rules p{margin-top:8px;line-height:1.45}
+.fight-rules strong{color:var(--cyan)}
+@media(max-width:640px){
+  .fight-screen{padding:17px 14px 16px}
+  .fight-header{margin-bottom:10px}
+  .fight-header h2{font-size:clamp(24px,7vw,32px)}
+  .fight-round strong{font-size:20px}
+  .fight-scene.fight-stage{height:245px}
+  .fight-scene .fighter-image.player{left:5%;width:40%}
+  .fight-scene .fighter-image.enemy,.fight-scene .fighter-image.enemy.portrait-trigger{right:5%;width:40%}
+  .fight-scene .fight-portrait-index{top:6px;left:6px;padding:4px 5px;font-size:8px}
+  .fight-scene .fight-portrait-name{padding:23px 6px 7px;font-size:clamp(13px,4vw,18px)}
+  .fight-scene-vs{font-size:27px}
+  .fight-vitals{gap:10px;padding:11px 0}
+  .fight-vitals .hp-label{font-size:9px}
+  .fight-vitals .hp-label strong{font-size:11px}
+  .fight-control{padding:12px;margin-top:10px}
+  .fight-timing-heading{margin-top:13px}
+  .fight-timing-heading span{font-size:10px}
+}
+@media(max-width:400px){.fight-scene.fight-stage{height:218px}.fight-round{font-size:9px}}
+@media(max-height:720px) and (min-width:641px){.fight-scene.fight-stage{height:230px}.fight-screen{padding-top:17px;padding-bottom:16px}.fight-control{padding-top:10px;padding-bottom:10px}}

@@ -1,4 +1,5 @@
-import {GYMS,RIVALS,SHOP,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,buy,beginFight,fightTurn,fightTimingWindow,fightMovePreview,fightMaxStamina,fightStartingStamina,migrateBattle} from './engine.mjs';
+import {GYMS,RIVALS,SHOP,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,buy,beginFight,fightTurn,fightTimingWindow,fightMovePreview,fightMaxStamina,fightStartingStamina,migrateBattle,advanceRandomEvent} from './engine.mjs';
+import {mountTowelGame} from './towel.mjs';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -29,7 +30,7 @@ try{const raw=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(raw?.state){
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({state,battle:battle&&!battle.finished?battle:null,sound}));saveFailed=false;}catch{saveFailed=true;}const el=$('save-status');if(el){el.textContent=saveFailed?'Сохранение недоступно в этом браузере':'Прогресс сохранён в этом браузере';el.classList.toggle('save-warning',saveFailed);}}
 function tone(kind='tap'){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')void audio.resume();const freqs=kind==='win'?[220,330,440,660]:kind==='perfect'?[440,660]:kind==='hit'?[85,55]:kind==='error'?[160,120]:[260];freqs.forEach((f,i)=>{const osc=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+i*.085;osc.type=kind==='hit'?'triangle':'sine';osc.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.055,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+.17);osc.connect(g);g.connect(audio.destination);osc.start(t);osc.stop(t+.2);});}catch{sound=false;}}
 function toast(message,error=false){const el=document.createElement('div');el.className=`toast${error?' error':''}`;el.textContent=message;$('toasts').append(el);setTimeout(()=>el.remove(),4400);if(error)tone('error');}
-function apply(result,{quiet=false,heroGains=false,trainingKind=null}={}){if(result.error){toast(result.error,true);return false;}const oldAchievements=new Set(state.achievements),before=state;state=result.state;const gains=Object.fromEntries([...statKeys,'energy'].map(k=>[k,state[k]-before[k]]).filter(([,gain])=>gain!==0));persist();if(Object.keys(gains).length)gainsPop(gains,heroGains,trainingKind);else render();if(!quiet&&result.message)toast(result.message);for(const id of state.achievements){if(!oldAchievements.has(id)){const a=achievements.find(x=>x[0]===id);setTimeout(()=>toast(`Достижение: ${a?.[1]??id}`),500);}}return true;}
+function apply(result,{quiet=false,heroGains=false,trainingKind=null,eventEligible=false}={}){if(result.error){toast(result.error,true);return false;}const oldAchievements=new Set(state.achievements),before=state;const randomEvent=eventEligible?advanceRandomEvent(result.state):null;state=randomEvent?.state??result.state;const gains=Object.fromEntries([...statKeys,'energy'].map(k=>[k,state[k]-before[k]]).filter(([,gain])=>gain!==0));persist();if(Object.keys(gains).length)gainsPop(gains,heroGains&&!randomEvent?.event,trainingKind);else render();if(!quiet&&result.message)toast(result.message);for(const id of state.achievements){if(!oldAchievements.has(id)){const a=achievements.find(x=>x[0]===id);setTimeout(()=>toast(`Достижение: ${a?.[1]??id}`),500);}}if(randomEvent?.event)showRandomEvent(randomEvent);return true;}
 function gainsPop(gains,heroGains=false,trainingKind=null){
   recentGains=gains;
   recentTrainingKind=trainingKind;
@@ -47,7 +48,7 @@ function gainsPop(gains,heroGains=false,trainingKind=null){
   gainsTimer=setTimeout(()=>{recentGains=null;recentTrainingKind=null;renderStats();renderEnergy();},6000);
 }
 
-function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>+40 энергии · 6 сек.</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>+${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
+function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>Антистресс · +40 энергии</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>Метатель полотенец · ${20+state.gym*15}–${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
 function fightMarkup(){
   const rival=nextRival(state);
   if(!rival)return `<div class="fight-panel"><span class="group-title">ФИНАЛ</span><h2>ТРЕНАЖЁРЫ ТЕПЕРЬ СЛУШАЮТСЯ ТЕБЯ.</h2><p class="dialog-copy">Все 12 соперников побеждены. Трон твой.</p><button id="victory-button" class="primary-button">МОЙ ТРИУМФ <span>♛</span></button></div>`;
@@ -149,7 +150,15 @@ function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.i
 function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;$('dialog-content').innerHTML=html;if(!$('game-dialog').open)$('game-dialog').showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
-function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата выбирай уход от показанного приёма. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся.</strong> Отдых бесплатный. На шаурму и экипировку заработай подработкой или победами.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
+function showRandomEvent({event,change}){
+  const index=Number(event.id.slice(1))-1,cell=index%15;
+  const art=`background-image:url('./assets/events-${Math.floor(index/15)}.webp?v=seam-fix');background-position:${cell%5*25}% ${Math.floor(cell/5)*50}%`;
+  const label=event.stat==='energy'?'Энергия':stats[event.stat];
+  const effect=event.setToZero?'Энергия → 0':`${label} ${change>=0?'+':'−'}${Math.abs(change)}`;
+  modal(`<div class="dialog-body random-event-dialog">${modalTop('СЛУЧАЙНОЕ СОБЫТИЕ',false)}<div class="random-event-art" style="${art}" role="img" aria-label="Иллюстрация к событию: ${esc(event.text)}"></div><h2 id="dialog-title">ВОТ ТАК ПОВОРОТ.</h2><p class="dialog-copy">${esc(event.text)}</p><div class="random-event-effect ${change<0?'negative':'positive'}"><span>ЭФФЕКТ</span><strong>${effect}</strong></div><button class="primary-button" data-close>ПРОДОЛЖИТЬ <span>↗</span></button></div>`,'random-event');
+  tone(change<0?'hit':'perfect');
+}
+function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай в любом месте антистресса: шарики пружинят, энергия возвращается без штрафов. На подработке замахнись и брось полотенце в корзину: ветер, скамья, груша и шкафчики мешают, каждое из трёх попаданий добавляет к оплате.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
 function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ ШКАФ С КУБКАМИ')}<h2 id="dialog-title">ЗАСЛУГИ ПЕРЕД ЖЕЛЕЗОМ.</h2><div class="achievement-list">${achievements.map(([id,name,desc])=>`<div class="achievement-item ${state.achievements.includes(id)?'':'locked'}">${state.achievements.includes(id)?'✓':'○'} ${name}<small>${desc}</small></div>`).join('')}</div></div>`);}
 
 function trainingShell(kind,game){
@@ -161,7 +170,7 @@ function finishTraining(kind,quality){
   cleanup?.();cleanup=null;
   modalKind=null;
   closeModal();
-  if(apply(train(state,kind,quality),{heroGains:true,trainingKind:kind})){
+  if(apply(train(state,kind,quality),{heroGains:true,trainingKind:kind,eventEligible:true})){
     tone('win');
     if(state.workouts%7===0)setTimeout(()=>toast(coachLines[Math.floor(state.workouts/7)%coachLines.length]),1600);
   }
@@ -307,51 +316,110 @@ function startTraining(kind){
   else if(kind==='technique')techniqueTraining();
   else cardioTraining();
 }
-function timedAction(kind){
+function shuffled(items){
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}
+  return result;
+}
+function startRestGame(){
   if(working||battle)return;
-  if(kind==='rest'&&state.energy===100){toast('Ты уже полон сил.');return;}
-  if(kind==='work'&&state.energy<12){toast('Сначала передохни: для работы нужно 12 энергии.',true);return;}
+  if(state.energy===100){toast('Ты уже полон сил.');return;}
   working=true;
-  const seconds=kind==='rest'?6:8;
-  const lines=kind==='rest'
-    ? ['Сел на скамью. Выглядишь занятой.','Глубокий вдох. Неглубокие мысли.','Силы возвращаются. Понты тоже.']
-    : ['Переносишь блины. Не те, что со сметаной.','Сорок килограммов чужих амбиций.','Тренер готовит наличку. Без премии.'];
-  modal(`<div class="dialog-body">${modalTop(kind==='rest'?'ВОССТАНОВЛЕНИЕ':'ПОДРАБОТКА')}<h2 id="dialog-title">${kind==='rest'?'ПОСИДИ КРАСИВО.':'ЖЕЛЕЗО ЛЮБИТ ПОРЯДОК.'}</h2><p class="work-description" id="work-description">${lines[0]}</p><div class="timer-ring"><i id="work-progress"></i></div><p class="dialog-copy">${kind==='rest'?'+40 энергии · бесплатно':`+${35+state.gym*15} ₽ · −12 энергии`} <span id="work-timer">${seconds} сек.</span></p></div>`,'timed');
-  const started=performance.now();
-  let raf=0,stop=false;
-  const frame=()=>{
-    if(stop)return;
-    const p=Math.min(1,(performance.now()-started)/(seconds*1000));
-    $('work-progress').style.width=`${p*100}%`;
-    $('work-timer').textContent=`${Math.ceil(seconds*(1-p))} сек.`;
-    $('work-description').textContent=lines[Math.min(2,Math.floor(p*3))];
-    if(p===1){
-      cleanup=null;
-      closeModal();
-      apply(kind==='rest'?rest(state):work(state));
-      tone('tap');
-      return;
+  modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ')}<h2 id="dialog-title">ВЫДОХНИ.</h2><p class="training-reward">+40 ЭНЕРГИИ</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажми на поле шесть раз, чтобы восстановить энергию"></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="visually-hidden" id="utility-status" role="status">0 из 6 нажатий</div></div>`,'utility');
+  const field=$('rest-playfield');
+  const orbs=Array.from({length:7},(_,i)=>{
+    const node=document.createElement('span');node.className=`rest-orb orb-${i%3}`;node.setAttribute('aria-hidden','true');field.append(node);
+    return {node,x:25+Math.random()*Math.max(1,field.clientWidth-90),y:25+Math.random()*Math.max(1,field.clientHeight-90),vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3};
+  });
+  const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reducedMotion)for(const orb of orbs)orb.node.style.transform=`translate3d(${orb.x}px,${orb.y}px,0)`;
+  let active=true,complete=false,pops=0,frameId=0,timer=0,last=performance.now();
+  const frame=now=>{
+    if(!active)return;
+    const step=Math.min(2,(now-last)/16.67);last=now;
+    const width=field.clientWidth-54,height=field.clientHeight-54;
+    for(const orb of orbs){
+      orb.vy+=.17*step;orb.x+=orb.vx*step;orb.y+=orb.vy*step;
     }
-    raf=requestAnimationFrame(frame);
+    // Equal-mass elastic collisions: separate overlapping balls, then exchange
+    // the component of their velocity along the impact axis.
+    for(let pass=0;pass<2;pass++)for(let i=0;i<orbs.length;i++)for(let j=i+1;j<orbs.length;j++){
+      const a=orbs[i],b=orbs[j],dx=b.x-a.x,dy=b.y-a.y,distance=Math.hypot(dx,dy);
+      if(distance>=54)continue;
+      const nx=distance?dx/distance:1,ny=distance?dy/distance:0,overlap=(54-distance)/2;
+      a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
+      const relative=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+      if(relative<0){const impulse=-(1+.9)*relative/2;a.vx-=impulse*nx;a.vy-=impulse*ny;b.vx+=impulse*nx;b.vy+=impulse*ny;}
+    }
+    for(const orb of orbs){
+      if(orb.x<0||orb.x>width){orb.x=Math.max(0,Math.min(width,orb.x));orb.vx*=-.82;}
+      if(orb.y<0||orb.y>height){orb.y=Math.max(0,Math.min(height,orb.y));orb.vy*=-.78;orb.vx*=.97;}
+      orb.node.style.transform=`translate3d(${orb.x}px,${orb.y}px,0)`;
+    }
+    frameId=requestAnimationFrame(frame);
   };
-  cleanup=()=>{stop=true;cancelAnimationFrame(raf);};
-  raf=requestAnimationFrame(frame);
+  if(!reducedMotion)frameId=requestAnimationFrame(frame);
+  field.addEventListener('click',event=>{
+    if(!active||complete)return;
+    const rect=field.getBoundingClientRect();
+    const x=event.detail?event.clientX-rect.left:rect.width/2,y=event.detail?event.clientY-rect.top:rect.height/2;
+    const burst=document.createElement('span');burst.className='rest-ripple';burst.style.left=`${x}px`;burst.style.top=`${y}px`;field.append(burst);burst.addEventListener('animationend',()=>burst.remove(),{once:true});
+    for(let i=0;i<9;i++){
+      const spark=document.createElement('span');spark.className='rest-spark';spark.style.left=`${x}px`;spark.style.top=`${y}px`;
+      spark.style.setProperty('--dx',`${(Math.random()-.5)*180}px`);spark.style.setProperty('--dy',`${(Math.random()-.7)*145}px`);
+      field.append(spark);spark.addEventListener('animationend',()=>spark.remove(),{once:true});
+    }
+    for(const orb of orbs){const dx=orb.x+27-x,dy=orb.y+27-y,distance=Math.max(28,Math.hypot(dx,dy));const force=4+100/(distance+20);orb.vx+=dx/distance*force+(Math.random()-.5)*2;orb.vy+=dy/distance*force-9;}
+    pops++;$('rest-pips').children[pops-1].classList.add('filled');$('utility-status').textContent=`${pops} из 6 нажатий`;
+    tone(pops===6?'perfect':'tap');
+    if(pops===6){complete=true;field.disabled=true;timer=setTimeout(()=>{if(!active)return;active=false;closeModal();apply(rest(state),{eventEligible:true});},850);}
+  });
+  cleanup=()=>{active=false;cancelAnimationFrame(frameId);clearTimeout(timer);};
+}
+function startWorkGame(){
+  if(working||battle)return;
+  if(state.energy<12){toast('Сначала передохни: для работы нужно 12 энергии.',true);return;}
+  working=true;
+  const minimum=20+state.gym*15,maximum=35+state.gym*15;
+  modal(`<div class="dialog-body utility-game work-game">${modalTop('ПОДРАБОТКА · −12 ЭНЕРГИИ')}<div class="work-heading"><h2 id="dialog-title">МЕТАТЕЛЬ ПОЛОТЕНЕЦ</h2><p class="training-reward">${minimum}–${maximum} ₽ · +5 ₽ ЗА ПОПАДАНИЕ</p></div><p class="dialog-copy">Замахнись: тяни назад и отпускай. Полотенце — настоящая ткань: парусит на ветру вентилятора, цепляется за бортик и отскакивает от груши.</p><div class="towel-stage"><canvas class="towel-canvas" id="towel-canvas" width="960" height="540" tabindex="0" aria-label="Прачечная качалки. Тяни назад мышью или пальцем и отпускай, чтобы бросить полотенце в корзину. Стрелками настрой замах, пробелом брось." aria-describedby="utility-status"></canvas></div><div class="towel-controls"><div class="towel-pips" id="towel-pips" aria-label="Три броска"><i></i><i></i><i></i></div><span class="towel-keys">СТРЕЛКИ + ПРОБЕЛ</span><button type="button" class="towel-throw" id="towel-throw">БРОСИТЬ</button></div><div class="utility-game-status" id="utility-status" role="status">Бросок 1 / 3</div></div>`,'utility');
+  const canvas=$('towel-canvas');
+  let finished=false;
+  const status=text=>{const el=$('utility-status');if(el)el.textContent=text;};
+  const windText=layout=>{const speed=Math.abs(layout.wind)/110;return speed<.08?'штиль':`ветер ${layout.wind>0?'→':'←'} ${speed.toFixed(1).replace('.',',')} м/с`;};
+  const game=mountTowelGame(canvas,{
+    gym:state.gym,
+    reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
+    sound:tone,
+    onThrow:(index,layout)=>{status(`Бросок ${index+1} / 3 · ${layout.name} · ${windText(layout)}`);const button=$('towel-throw');if(button)button.disabled=false;},
+    onShot:(result,index,text)=>{$('towel-pips')?.children[index]?.classList.add(result.hit?'hit':result.kind==='rim'?'rim':'miss');const title=text.title[0]+text.title.slice(1).toLowerCase();status(`${title}${/[!?.…]$/.test(title)?'':'.'} ${text.line}`);const button=$('towel-throw');if(button)button.disabled=true;},
+    onDone:hits=>{if(finished)return;finished=true;closeModal();apply(work(state,hits/3),{eventEligible:true});},
+  });
+  if(!game){closeModal();toast('В этом браузере не удалось открыть мини-игру.',true);return;}
+  const onKey=event=>{
+    if(modalKind!=='utility'||!game.ready)return;
+    if(event.code==='Space'){event.preventDefault();if(!event.repeat)game.release();return;}
+    const moves={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.code];
+    if(!moves)return;
+    event.preventDefault();
+    const step=event.shiftKey?12:4;
+    game.aim(moves[0]*step,moves[1]*step);
+  };
+  $('towel-throw').addEventListener('click',()=>game.release());
+  document.addEventListener('keydown',onKey);
+  canvas.focus({preventScroll:true});
+  cleanup=()=>{finished=true;game.destroy();document.removeEventListener('keydown',onKey);};
 }
 function startFight(){if(working||battle)return;const result=beginFight(state);if(result.error){toast(result.error,true);return;}battle=result.battle;state=result.state;persist();render();roundLock=false;fightView();tone('hit');}
-function fightLogMarkup(current,message=''){
+function fightLogMarkup(current,message='',phase='complete'){
   const last=current.history.at(-1);
   if(!last)return `<div class="fight-log-placeholder">${esc(message||'Лови бегунок в узкой зелёной зоне и атакуй.')}</div>`;
   if(last.move!=='attack')return '<div class="fight-log-placeholder">Бой продолжен по новым правилам. Теперь на ковре одна атака — лови зелёную зону.</div>';
   const damage=value=>Math.max(0,Number.isFinite(value)?Math.round(value):0);
   const dealt=damage(last.playerDamage),received=damage(last.enemyDamage);
-  const outcome=last.winded?'ВЫДОХСЯ':last.timingGrade==='perfect'?'ИДЕАЛЬНЫЙ ТАЙМИНГ':last.timingGrade==='good'?(last.damageMultiplier===undefined?'ПОПАДАНИЕ':'СРЕДНЯЯ СИЛА'):last.timingGrade==='weak'?'СЛАБАЯ СИЛА':'МИМО ЗОНЫ';
-  const timing=last.winded?'Сил не хватило на удар: ход восстановил запас, соперник ответил.':last.timingGrade==='perfect'?'В яблочко: 100% урона, ответ слабее.':last.timingGrade==='good'?(last.damageMultiplier===undefined?'Бегунок был в зоне: атака прошла.':'Средняя зона: ⅔ урона.'):last.timingGrade==='weak'?'Край зоны: ⅓ урона.':'Вне зоны: атака не нанесла урон, соперник ответил.';
+  const outcome=last.timingGrade==='perfect'?'ИДЕАЛЬНЫЙ ТАЙМИНГ':last.timingGrade==='good'?(last.damageMultiplier===undefined?'ПОПАДАНИЕ':'СРЕДНЯЯ СИЛА'):last.timingGrade==='weak'?'СЛАБАЯ СИЛА':'МИМО ЗОНЫ';
+  const timing=last.timingGrade==='perfect'?'В яблочко: 100% урона, ответ слабее.':last.timingGrade==='good'?(last.damageMultiplier===undefined?'Бегунок был в зоне: атака прошла.':'Средняя зона: ⅔ урона.'):last.timingGrade==='weak'?'Край зоны: ⅓ урона.':'Вне зоны: атака не нанесла урон, соперник ответил.';
   const stamina=Number.isFinite(last.staminaDelta)?` · ${last.staminaDelta>=0?'+':'−'}${Math.abs(Math.round(last.staminaDelta))} сил`:'';
-  return `<div class="fight-log-summary"><span>РАУНД ${damage(last.round)} · АТАКА</span><strong>${outcome}</strong></div><div class="fight-log-stats"><div class="fight-log-stat dealt"><span>СОПЕРНИК ПОТЕРЯЛ</span><strong>${dealt?'−':''}${dealt}</strong><small>здоровья</small></div><div class="fight-log-stat received"><span>ТЫ ПОТЕРЯЛ</span><strong>${received?'−':''}${received}</strong><small>здоровья</small></div></div><div class="fight-log-note">${timing}${stamina}</div>`;
-}
-function exchangeLine(side,damage,note){
-  const label=side==='player'?'ТВОЯ АТАКА':'ОТВЕТ СОПЕРНИКА';
-  return `<div class="exchange-line ${side}"><span>${label}</span><strong>${damage>0?`−${damage}`:'0'} урона</strong><small>${esc(note)}</small></div>`;
+  return `<div class="fight-log-summary"><span>РАУНД ${damage(last.round)} · АТАКА</span><strong>${outcome}</strong></div><div class="fight-log-stats"><div class="fight-log-stat dealt"><span>СОПЕРНИК ПОТЕРЯЛ</span><strong>${dealt?'−':''}${dealt}</strong><small>здоровья</small></div><div class="fight-log-stat received"><span>ТЫ ПОТЕРЯЛ</span><strong>${phase==='player'?'…':`${received?'−':''}${received}`}</strong><small>здоровья</small></div></div><div class="fight-log-note">${phase==='player'?'Соперник отвечает…':`${timing}${stamina}`}</div>`;
 }
 function floatDamage(side,damage,note){
   const popup=$(`${side}-damage`);
@@ -373,9 +441,20 @@ function fightView(message=''){
   const maxStamina=battle.maxStamina||fightMaxStamina(state),enemyMaxHp=battle.enemyMaxHp||100;
   const staminaPct=Math.max(0,Math.min(100,battle.playerStamina/maxStamina*100));
   const enemyHpPct=Math.max(0,Math.min(100,battle.enemyHp/enemyMaxHp*100));
-  modal(`<div class="dialog-body">${modalTop(`КОВЁР · РАУНД ${Math.min(10,battle.round+1)} / 10`,false)}<h2 id="dialog-title">${esc(r.name.toUpperCase())}</h2><p class="muted">«${esc(r.quote)}»</p><div class="fight-stage"><div><div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')"><span>ТЫ</span></div><div class="hp-meter"><span class="damage-float" id="player-damage" aria-hidden="true"></span><div class="hp-label"><span>ЗДОРОВЬЕ</span><strong id="player-hp-value">${battle.playerHp} / 100</strong></div><div class="hp-track"><i id="player-hp-bar" style="width:${battle.playerHp}%"></i></div></div></div><span class="vs">VS</span><div><button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span>${esc(r.name)}</span></button><div class="hp-meter"><span class="damage-float" id="enemy-damage" aria-hidden="true"></span><div class="hp-label"><span>ЗДОРОВЬЕ СОПЕРНИКА</span><strong id="enemy-hp-value">${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i id="enemy-hp-bar" style="width:${enemyHpPct}%"></i></div></div></div></div><div class="fight-tip"><strong>Сила ${state.strength}</strong> бьёт · <strong>Техника ${state.technique}</strong> расширяет зону · <strong>Выносливость ${state.endurance}</strong> даёт запас сил.</div><div class="stamina-meter" id="fight-stamina" role="progressbar" aria-label="Запас сил" aria-valuemin="0" aria-valuemax="${maxStamina}" aria-valuenow="${battle.playerStamina}"><div class="stamina-label"><span>ЗАПАС СИЛ</span><strong id="fight-stamina-value">${battle.playerStamina} / ${maxStamina}</strong></div><div class="stamina-track ${staminaPct<25?'low':''}"><i id="fight-stamina-bar" style="width:${staminaPct}%"></i></div></div><div class="timing-caption fight-timing-caption">ЦЕНТР 100% · СЕРЕДИНА ⅔ · КРАЙ ⅓ · МИМО 0</div><div class="timing-track fight-timing-track" role="img" aria-label="Зона атаки: яркий центр — 100 процентов урона, средние части — две трети, блеклые края — одна треть, вне зоны — промах" style="height:20px;margin:10px 0 15px"><div class="timing-zone fight-timing-zone" style="left:${(0.5-timingWindow)*100}%;width:${timingWindow*200}%"></div><i class="timing-marker" id="fight-marker"></i></div><button class="primary-button attack-button" data-move="attack" ${roundLock?'disabled':''}><span><strong>АТАКОВАТЬ</strong><small>${preview?.winded?`Выдохся: +${preview.staminaDelta} сил, без урона`:`В центр: ${preview?.maxDamage??0} урона · −${preview?.staminaCost??18} сил`}</small></span><kbd>ПРОБЕЛ</kbd></button><div class="fight-log" id="fight-log" aria-live="polite">${fightLogMarkup(battle,message)}</div><div class="battle-hint">${battle.playerStamina<18?'Сил меньше 18: следующая атака восстановит запас, но не нанесёт урон.':'На 10-м раунде побеждает тот, у кого осталось больше здоровья.'}</div><button class="text-button" id="surrender-button" style="margin-top:15px">Сдаться и вернуться к железу</button></div>`,'fight');
+  modal(`<div class="dialog-body fight-screen">
+    <header class="fight-header"><div><span class="fight-eyebrow">${esc(GYMS[state.gym].name)} · КОВЁР</span><h2 id="dialog-title">${esc(r.name.toUpperCase())}</h2></div><span class="fight-round">РАУНД <strong>${battle.round+1}</strong></span></header>
+    <div class="fight-scene fight-stage" style="--gym-position:${position(state.gym)}" role="group" aria-label="Бой в зале ${esc(GYMS[state.gym].name)}">
+      <div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')" role="img" aria-label="Твой персонаж"><span class="fight-portrait-index">01 / ТЫ</span><span class="fight-portrait-name">ТВОЙ ВЫХОД</span></div>
+      <span class="fight-scene-vs" aria-hidden="true">VS</span>
+      <button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span class="fight-portrait-index">02 / СОПЕРНИК</span><span class="fight-portrait-name">${esc(r.name)}</span></button>
+      <span class="damage-float" id="player-damage" aria-hidden="true"></span><span class="damage-float" id="enemy-damage" aria-hidden="true"></span>
+    </div>
+    <div class="fight-vitals"><div class="hp-meter"><div class="hp-label"><span>ТВОЁ ЗДОРОВЬЕ</span><strong id="player-hp-value">${battle.playerHp} / 100</strong></div><div class="hp-track"><i id="player-hp-bar" style="width:${battle.playerHp}%"></i></div></div><div class="hp-meter"><div class="hp-label"><span>ЗДОРОВЬЕ СОПЕРНИКА</span><strong id="enemy-hp-value">${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i id="enemy-hp-bar" style="width:${enemyHpPct}%"></i></div></div></div>
+    <section class="fight-control" aria-label="Управление атакой"><div class="stamina-meter" id="fight-stamina" role="progressbar" aria-label="Запас сил" aria-valuemin="0" aria-valuemax="${maxStamina}" aria-valuenow="${battle.playerStamina}"><div class="stamina-label"><span>ЗАПАС СИЛ</span><strong id="fight-stamina-value">${battle.playerStamina} / ${maxStamina}</strong></div><div class="stamina-track ${staminaPct<25?'low':''}"><i id="fight-stamina-bar" style="width:${staminaPct}%"></i></div></div><div class="fight-timing-heading"><span>Урон: 0–${preview?.maxDamage??0}</span></div><div class="timing-track fight-timing-track" role="img" aria-label="Зона атаки: яркий центр — 100 процентов урона, средние части — две трети, блеклые края — одна треть, вне зоны — промах"><div class="timing-zone fight-timing-zone" style="left:${(0.5-timingWindow)*100}%;width:${timingWindow*200}%"></div><i class="timing-marker" id="fight-marker"></i></div><button class="primary-button attack-button" data-move="attack" ${roundLock?'disabled':''}><strong>АТАКОВАТЬ</strong><kbd>ПРОБЕЛ</kbd></button></section>
+    <div class="fight-log" id="fight-log" aria-live="polite">${fightLogMarkup(battle,message)}</div><div class="fight-footer"><span class="battle-hint">Бой идёт до нуля здоровья или запаса сил. Последним ударом можно победить.</span><button class="text-button" id="surrender-button">Сдаться</button></div><details class="fight-rules"><summary>Как работают показатели</summary><p><strong>Сила ${state.strength}</strong> увеличивает урон · <strong>Техника ${state.technique}</strong> расширяет зону · <strong>Выносливость ${state.endurance}</strong> увеличивает запас сил. Точный удар тратит 8 сил, обычное попадание — 10, промах — 13. Если сил осталось меньше, тратится остаток.</p></details>
+  </div>`,'fight');
   $('dialog-content').querySelector('[data-move="attack"]')?.focus({preventScroll:true});
-  const started=performance.now(),period=Math.max(390,610-state.gym*42-(state.wins%3===2?30:0)-battle.round*5);
+  const started=performance.now(),period=r.timingPeriod;
   let stop=false;
   const frame=()=>{if(stop)return;const marker=$('fight-marker');if(marker)marker.style.left=`${(1-Math.cos((performance.now()-started)/period))*50}%`;tickFrame=requestAnimationFrame(frame);};
   cleanup=()=>{stop=true;cancelAnimationFrame(tickFrame);};tickFrame=requestAnimationFrame(frame);
@@ -392,12 +471,11 @@ function makeMove(move){
   document.querySelectorAll('[data-move]').forEach(button=>button.disabled=true);
   $('surrender-button').disabled=true;
   const turn=result.turn,maxStamina=battle.maxStamina||fightMaxStamina(state);
-  const timingNotes={perfect:'В яблочко · 100%',good:'Средняя зона · ⅔',weak:'Край зоны · ⅓',miss:'Мимо зоны',winded:'Сил не хватило'};
   const staminaNote=`${turn.staminaDelta>=0?'+':'−'}${Math.abs(turn.staminaDelta)} сил`;
-  $('fight-log').innerHTML=exchangeLine('player',turn.playerDamage,`${timingNotes[turn.timingGrade]||'Атака'} · ${staminaNote}`);
+  $('fight-log').innerHTML=fightLogMarkup(battle,'','player');
   $('player-fighter').classList.add('strike-forward');
   $('enemy-fighter').classList.add(turn.playerDamage>0?'take-hit':'evade-hit');
-  floatDamage('enemy',turn.playerDamage,turn.winded?'НЕТ СИЛ':turn.playerDamage?'УРОН':'МИМО');
+  floatDamage('enemy',turn.playerDamage,turn.playerDamage?'УРОН':'МИМО');
   updateFightMeter('enemy',battle.enemyHp,battle.enemyMaxHp||100);
   $('fight-stamina-value').textContent=`${battle.playerStamina} / ${maxStamina} (${staminaNote})`;
   $('fight-stamina').setAttribute('aria-valuenow',String(battle.playerStamina));
@@ -415,16 +493,17 @@ function makeMove(move){
     }
     floatDamage('player',turn.enemyDamage,turn.enemyDamage?'УРОН':'НЕ ОТВЕТИЛ');
     updateFightMeter('player',battle.playerHp,100);
-    $('fight-log').insertAdjacentHTML('beforeend',exchangeLine('enemy',turn.enemyDamage,turn.enemyDamage?'Соперник атаковал':'Соперник повержен и не ответил'));
-  },800);
+    $('fight-log').innerHTML=fightLogMarkup(battle);
+  },900);
   setTimeout(()=>{
     roundLock=false;
     if(battle?.finished){
-      const win=battle.result==='win';battle=null;persist();render();showFightResult(win,r,oldGym,result.message);
+      const win=battle.result==='win',exhausted=!win&&battle.playerStamina===0&&battle.playerHp>0;
+      battle=null;persist();render();showFightResult(win,r,oldGym,result.message,exhausted);
     }else if(battle)fightView(result.message);
-  },1900);
+  },2800);
 }
-function showFightResult(win,r,oldGym,message){if(state.won){showVictory();return;}modal(`<div class="dialog-body">${modalTop(win?'АВТОРИТЕТ ПОЛУЧЕН':'ПРОСТО РАЗМИНКА',false)}<h2 id="dialog-title" class="victory-heading" style="color:${win?'var(--gold)':'var(--muted)'}">${win?'ТВОЯ ВЗЯЛА.':'ЕЩЁ ВСТРЕТИМСЯ.'}</h2><p class="dialog-copy" style="text-align:center">${esc(win?r.winQuote:'Тебя положили на лопатки. Самооценку поднимешь жимом.')}<br>${esc(message)}</p>${win?`<div class="result-stats"><div><strong>+${r.reward} ₽</strong><span>в кассу</span></div><div><strong>${state.wins} / 12</strong><span>соперников позади</span></div><div><strong>${power(state)}</strong><span>твоя мощь</span></div></div>`:''}${state.gym>oldGym?`<div class="gym-panorama travel-panorama" style="--gym-position:${position(state.gym)}" role="img" aria-label="${esc(GYMS[state.gym].name)}"></div><div class="telegraph"><strong>НОВЫЙ ЗАЛ: ${esc(GYMS[state.gym].name.toUpperCase())}</strong><br>${esc(GYMS[state.gym].description)}</div>`:''}<button class="primary-button" data-close>${win?'ДАЛЬШЕ — БОЛЬШЕ':'ПОЙДУ ПОДКАЧАЮСЬ'} <span>↗</span></button></div>`,'result');if(win){tone('win');confetti(28);}}
+function showFightResult(win,r,oldGym,message,exhausted=false){if(state.won){showVictory();return;}modal(`<div class="dialog-body">${modalTop(win?'АВТОРИТЕТ ПОЛУЧЕН':'ПРОСТО РАЗМИНКА',false)}<h2 id="dialog-title" class="victory-heading" style="color:${win?'var(--gold)':'var(--muted)'}">${win?'ТВОЯ ВЗЯЛА.':'ЕЩЁ ВСТРЕТИМСЯ.'}</h2><p class="dialog-copy" style="text-align:center">${esc(win?r.winQuote:exhausted?'Силы закончились раньше боя. Вернёшься крепче.':'Тебя положили на лопатки. Самооценку поднимешь жимом.')}<br>${esc(message)}</p>${win?`<div class="result-stats"><div><strong>+${r.reward} ₽</strong><span>в кассу</span></div><div><strong>${state.wins} / 12</strong><span>соперников позади</span></div><div><strong>${power(state)}</strong><span>твоя мощь</span></div></div>`:''}${state.gym>oldGym?`<div class="gym-panorama travel-panorama" style="--gym-position:${position(state.gym)}" role="img" aria-label="${esc(GYMS[state.gym].name)}"></div><div class="telegraph"><strong>НОВЫЙ ЗАЛ: ${esc(GYMS[state.gym].name.toUpperCase())}</strong><br>${esc(GYMS[state.gym].description)}</div>`:''}<button class="primary-button" data-close>${win?'ДАЛЬШЕ — БОЛЬШЕ':'ПОЙДУ ПОДКАЧАЮСЬ'} <span>↗</span></button></div>`,'result');if(win){tone('win');confetti(28);}}
 const victoryTrack=new Audio('./assets/victory-theme.mp3');
 victoryTrack.preload='none';
 victoryTrack.volume=.8;
@@ -498,8 +577,8 @@ function handleClick(ev){
   if(b.dataset.buy){if(apply(buy(state,b.dataset.buy)))tone('perfect');return;}
   if(b.dataset.move){makeMove(b.dataset.move);return;}
   switch(b.id){
-    case 'rest-button': timedAction('rest');break;
-    case 'work-button': timedAction('work');break;
+    case 'rest-button': startRestGame();break;
+    case 'work-button': startWorkGame();break;
     case 'fight-button': startFight();break;
     case 'victory-button': showVictory();break;
     case 'victory-music-toggle': if(victoryTrack.paused)playVictoryMusic();else victoryTrack.pause();break;
