@@ -97,6 +97,28 @@ function commit(state, message) {
 
 const failure = (state, error) => ({ state, error });
 
+export function trainingDifficulty(gym, workouts = 0) {
+  const level = Math.min(3, Math.max(0, Math.trunc(gym) || 0));
+  const practice = Math.max(0, Math.trunc(workouts) || 0);
+  return {
+    liftSpeed: 72 + level * 12,
+    liftZone: 20 - level * 4,
+    gripLimit: Math.max(1200, 2200 - level * 250 - Math.min(120, practice * 1.5)),
+    cardioLow: 54 + level * 2,
+    cardioHigh: 78 - level * 2,
+    cardioDecay: 7.5 + level * 3.5,
+  };
+}
+
+export function liftQuality(charge, zoneWidth) {
+  if (charge >= 98) return 0;
+  const distance = Math.abs(charge - 75);
+  const halfZone = zoneWidth / 2;
+  return distance <= halfZone
+    ? 0.85 + 0.15 * (1 - distance / halfZone)
+    : Math.max(0, 0.85 - (distance - halfZone) / 24);
+}
+
 export function train(state, kind, quality = 0.5) {
   if (!STATS.includes(kind)) return failure(state, 'Такого упражнения пока не придумали.');
   if (state.energy < 18) return failure(state, 'Нужно 18 энергии. Переведи дух или перекуси.');

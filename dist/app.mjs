@@ -1,4 +1,4 @@
-import {GYMS,RIVALS,SHOP,createState,sanitizeState,power,nextRival,train,rest,work,buy,beginFight,fightTurn,fightTimingWindow,fightMovePreview,fightMaxStamina,fightStartingStamina,migrateBattle} from './engine.mjs';
+import {GYMS,RIVALS,SHOP,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,buy,beginFight,fightTurn,fightTimingWindow,fightMovePreview,fightMaxStamina,fightStartingStamina,migrateBattle} from './engine.mjs';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -168,7 +168,8 @@ function finishTraining(kind,quality){
 }
 function strengthTraining(){
   const total=3;
-  trainingShell('strength',`<div class="minigame-heading"><span class="tiny-label">ЖИМ · ${total} ПОДХОДА</span><strong id="lift-count">1 / ${total}</strong></div><div class="lift-game"><div class="lift-track" id="lift-track" aria-label="Высота штанги: отпусти в зелёной зоне"><div class="lift-target"></div><div class="lift-fill" id="lift-fill"></div><div class="lift-weight" id="lift-weight" aria-hidden="true"><i></i><b></b><i></i></div></div><div class="lift-readout"><strong id="lift-percent">0%</strong><span>ЗЕЛЁНАЯ ЗОНА = ЧИСТЫЙ ЖИМ</span></div></div><button class="primary-button lift-button" id="lift-button">ДЕРЖИ И ОТПУСТИ <kbd>ПРОБЕЛ</kbd></button><div class="workout-score" id="lift-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="lift-result" role="status">Зажми кнопку или пробел. Отпусти, когда штанга в зелёной зоне.</p>`);
+  const difficulty=trainingDifficulty(state.gym,state.workouts);
+  trainingShell('strength',`<div class="minigame-heading"><span class="tiny-label">ЖИМ · ${total} ПОДХОДА</span><strong id="lift-count">1 / ${total}</strong></div><div class="lift-game"><div class="lift-track" id="lift-track" aria-label="Высота штанги: отпусти в зелёной зоне"><div class="lift-target" style="bottom:${75-difficulty.liftZone/2}%;height:${difficulty.liftZone}%"></div><div class="lift-fill" id="lift-fill"></div><div class="lift-weight" id="lift-weight" aria-hidden="true"><i></i><b></b><i></i></div></div><div class="lift-readout"><strong id="lift-percent">0%</strong><span>ЗЕЛЁНАЯ ЗОНА = ЧИСТЫЙ ЖИМ</span></div></div><button class="primary-button lift-button" id="lift-button">ДЕРЖИ И ОТПУСТИ <kbd>ПРОБЕЛ</kbd></button><div class="workout-score" id="lift-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="lift-result" role="status">Зажми кнопку или пробел. Отпусти, когда штанга в зелёной зоне.</p>`);
   let rep=0,sum=0,charge=0,holding=false,active=true,last=performance.now(),raf=0,nextTimer=0;
   const button=$('lift-button');
   const paint=()=>{
@@ -181,7 +182,7 @@ function strengthTraining(){
   const release=()=>{
     if(!active||!holding)return;
     holding=false;button.classList.remove('holding');button.disabled=true;
-    const quality=charge>=98?0:Math.max(0,1-Math.abs(charge-75)/45);
+    const quality=liftQuality(charge,difficulty.liftZone);
     sum+=quality;
     $('lift-score').children[rep].className=quality>=.65?'hit':'miss';
     $('lift-result').textContent=quality>=.85?'ЧИСТЫЙ ЖИМ! ШТАНГА В ШОКЕ.':quality>=.55?'Засчитано. Ещё подход.':'Слишком рано или перегруз. Держи ровнее.';
@@ -198,7 +199,7 @@ function strengthTraining(){
   const frame=now=>{
     if(!active)return;
     const delta=Math.min(60,now-last);last=now;
-    if(holding){charge=Math.min(100,charge+delta*(72+state.gym*3)/1000);paint();if(charge>=100)release();}
+    if(holding){charge=Math.min(100,charge+delta*difficulty.liftSpeed/1000);paint();if(charge>=100)release();}
     raf=requestAnimationFrame(frame);
   };
   const onKeyDown=event=>{if(event.code==='Space'&&modalKind==='training'){event.preventDefault();if(!event.repeat)hold();}};
@@ -212,10 +213,10 @@ function strengthTraining(){
   raf=requestAnimationFrame(frame);
 }
 function techniqueTraining(){
-  const prompts=[{sign:'←',name:'ЗАХВАТ СЛЕВА',answer:2},{sign:'↓',name:'ДАВИТ СВЕРХУ',answer:1},{sign:'→',name:'ЗАХВАТ СПРАВА',answer:0}];
+  const prompts=[{sign:'→',name:'ЗАХВАТ СЛЕВА · УХОДИ ВПРАВО',answer:2},{sign:'↓',name:'ДАВИТ СВЕРХУ · НЫРЯЙ',answer:1},{sign:'←',name:'ЗАХВАТ СПРАВА · УХОДИ ВЛЕВО',answer:0}];
   const choices=[['←','УЙТИ ВЛЕВО'],['↓','НЫРОК'],['→','УЙТИ ВПРАВО']];
-  const total=4,limit=Math.max(1450,2150-state.gym*120-Math.min(150,state.workouts*2));
-  trainingShell('technique',`<div class="minigame-heading"><span class="tiny-label">ЧИТАЙ СОПЕРНИКА · ${total} ПРИЁМА</span><strong id="grip-count">0 / ${total}</strong></div><div class="grip-cue" id="grip-cue" role="status"><span id="grip-sign">?</span><strong id="grip-name">ПРИГОТОВЬСЯ К ЗАХВАТУ</strong></div><div class="grip-clock"><i id="grip-clock"></i></div><p class="grip-rule">Слева — уйди вправо. Справа — влево. Сверху — нырок.</p><div class="grip-choices">${choices.map(([icon,label],index)=>`<button type="button" class="grip-choice" data-counter="${index}" disabled><span>${icon}</span><strong>${label}</strong><small><b>${index+1}</b> · ${icon}</small></button>`).join('')}</div><button type="button" class="primary-button training-start" id="grip-start">НАЧАТЬ ТРЕНИРОВКУ <kbd>ПРОБЕЛ</kbd></button><div class="workout-score" id="grip-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="grip-result" role="status">Сначала изучи приёмы. Затем нажми «Начать» или пробел; отвечай стрелками ← ↓ → либо цифрами 1–3.</p>`);
+  const total=4,limit=trainingDifficulty(state.gym,state.workouts).gripLimit;
+  trainingShell('technique',`<div class="minigame-heading"><span class="tiny-label">ЧИТАЙ СОПЕРНИКА · ${total} ПРИЁМА</span><strong id="grip-count">0 / ${total}</strong></div><div class="grip-cue" id="grip-cue" role="status"><span id="grip-sign">?</span><strong id="grip-name">ПРИГОТОВЬСЯ К ЗАХВАТУ</strong></div><div class="grip-clock"><i id="grip-clock"></i></div><p class="grip-rule">Большая стрелка показывает нужный уход: нажми такую же стрелку на клавиатуре.</p><div class="grip-choices">${choices.map(([icon,label],index)=>`<button type="button" class="grip-choice" data-counter="${index}" disabled><span>${icon}</span><strong>${label}</strong><small><b>${index+1}</b> · ${icon}</small></button>`).join('')}</div><button type="button" class="primary-button training-start" id="grip-start">НАЧАТЬ ТРЕНИРОВКУ <kbd>ПРОБЕЛ</kbd></button><div class="workout-score" id="grip-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="grip-result" role="status">Сначала изучи приёмы. Затем нажми «Начать» или пробел; отвечай стрелками ← ↓ → либо цифрами 1–3.</p>`);
   let step=0,sum=0,current=Math.floor(Math.random()*3),started=0,active=true,running=false,answered=false,cueTimer=0,nextTimer=0;
   const buttons=[...document.querySelectorAll('.grip-choice')];
   const cue=()=>{
@@ -240,7 +241,7 @@ function techniqueTraining(){
     sum+=quality;
     $('grip-score').children[step].className=correct?'hit':'miss';
     $('grip-cue').classList.add(correct?'correct':'wrong');
-    $('grip-result').textContent=correct?'ЧИСТЫЙ УХОД!':choice<0?'Задумался — тебя уже бросили.':'Не тот уход. Читай направление!';
+    $('grip-result').textContent=correct?'ЧИСТЫЙ УХОД!':choice<0?`Задумался — нужен был уход ${prompts[current].sign}.`:`Нажал ${choices[choice][0]}, нужен был уход ${prompts[current].sign}.`;
     buttons.forEach(button=>button.disabled=true);
     tone(correct?'perfect':'error');
     nextTimer=setTimeout(()=>{
@@ -266,7 +267,7 @@ function techniqueTraining(){
   cleanup=()=>{active=false;clearTimeout(cueTimer);clearTimeout(nextTimer);document.removeEventListener('keydown',onKey);};
 }
 function cardioTraining(){
-  const low=54+state.gym,high=78-state.gym,duration=6500;
+  const difficulty=trainingDifficulty(state.gym,state.workouts),low=difficulty.cardioLow,high=difficulty.cardioHigh,duration=6500;
   trainingShell('endurance',`<div class="minigame-heading"><span class="tiny-label">КАРДИО · ДЕРЖИ ТЕМП</span><strong id="cardio-time">7 сек.</strong></div><div class="cardio-heart" id="cardio-heart" aria-hidden="true">♥</div><div class="cardio-readout"><strong id="cardio-pulse">36</strong><span>УСЛОВНЫЙ ПУЛЬС</span></div><div class="cardio-gauge" role="img" aria-label="Держи пульс в зелёной зоне"><span class="cardio-zone" style="left:${low}%;width:${high-low}%"></span><i id="cardio-fill"></i></div><div class="cardio-scale"><span>МЕДЛЕННО</span><span>ТВОЙ ТЕМП</span><span>ПЕРЕГРЕВ</span></div><button class="primary-button cardio-button" id="cardio-button">НАЧАТЬ КАРДИО <kbd>ПРОБЕЛ</kbd></button><p class="timing-result" id="cardio-result" role="status">Изучи шкалу. Нажми кнопку или пробел, чтобы начать; затем держи пульс в зелёной зоне.</p>`);
   let pulse=36,inZone=0,active=true,running=false,raf=0,started=0,previous=0,lastMessage='';
   const start=()=>{if(!active||running)return;running=true;started=performance.now();previous=started;$('cardio-button').firstChild.textContent='СДЕЛАТЬ ШАГ ';$('cardio-result').textContent='Нажимай, чтобы разогнаться. В зелёной зоне держи ровный темп.';raf=requestAnimationFrame(frame);};
@@ -280,7 +281,7 @@ function cardioTraining(){
     if(!active)return;
     const delta=Math.min(80,now-previous);previous=now;
     const elapsed=Math.min(duration,now-started);
-    pulse=Math.max(25,pulse-delta*(7.5+state.gym)/1000);
+    pulse=Math.max(25,pulse-delta*difficulty.cardioDecay/1000);
     if(elapsed>600&&pulse>=low&&pulse<=high)inZone+=delta;
     $('cardio-pulse').textContent=String(Math.round(pulse));
     $('cardio-fill').style.width=`${pulse}%`;

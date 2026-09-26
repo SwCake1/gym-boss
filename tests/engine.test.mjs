@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival,
-  train, rest, work, buy, beginFight, fightTurn, fightTimingWindow,
+  train, trainingDifficulty, liftQuality, rest, work, buy, beginFight, fightTurn, fightTimingWindow,
   fightMovePreview, fightMaxStamina, fightStartingStamina, migrateBattle,
 } from '../dist/engine.mjs';
 
@@ -36,6 +36,18 @@ assert.equal(new Set(RIVALS.map(r => r.id)).size, 12);
 assert.ok(RIVALS.every(r => r.gym >= 0 && r.gym <= 3));
 assert.deepEqual(RIVALS.map(r => r.portrait), Array.from({ length: 12 }, (_, i) => i));
 assert.ok(SHOP.every(item => item.cost > 0 && ['food', 'boost', 'gear'].includes(item.type)));
+const trainingLevels = GYMS.map((_, gym) => trainingDifficulty(gym, gym * 15));
+for (let gym = 1; gym < trainingLevels.length; gym++) {
+  const before = trainingLevels[gym - 1], current = trainingLevels[gym];
+  assert.ok(current.liftSpeed > before.liftSpeed && current.liftZone < before.liftZone);
+  assert.ok(current.gripLimit < before.gripLimit);
+  assert.ok(current.cardioHigh - current.cardioLow < before.cardioHigh - before.cardioLow);
+  assert.ok(current.cardioDecay > before.cardioDecay);
+  assert.ok(current.cardioHigh - current.cardioLow >= 11, 'Cardio zone must remain reachable after one step');
+}
+assert.equal(liftQuality(75, trainingLevels[0].liftZone), 1);
+assert.equal(liftQuality(99, trainingLevels[0].liftZone), 0);
+assert.ok(liftQuality(90, trainingLevels[3].liftZone) < liftQuality(90, trainingLevels[0].liftZone));
 
 const initial = freeze(createState());
 assert.equal(power(initial), 9);
