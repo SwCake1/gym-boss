@@ -138,7 +138,7 @@ function render(){
 }
 
 function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.indexOf(r)>state.wins)return;const dialog=document.createElement('dialog');dialog.className='portrait-dialog';dialog.setAttribute('aria-label',`Фото ${r.name}`);dialog.innerHTML=`<div class="portrait-dialog-body"><button type="button" class="close-button portrait-close" aria-label="Закрыть фото">×</button><div class="portrait-art" style="${rivalSpriteStyle(r.portrait)}" role="img" aria-label="${esc(r.name)}"></div><h2>${esc(r.name)}</h2><p>${esc(r.title)}</p></div>`;document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.querySelector('.portrait-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});dialog.showModal();}
-function closeModal(){if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
+function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;$('dialog-content').innerHTML=html;if(!$('game-dialog').open)$('game-dialog').showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
 function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Качайся.</strong> В каждом подходе 6 повторений. Жми кнопку или пробел, когда бегунок в зелёной зоне. Точность даёт больше роста. В новых залах зона уже, а техника расширяет её.</li><li><strong>Восстанавливайся.</strong> Отдых бесплатный. На шаурму и экипировку заработай подработкой или победами.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Музыки нет. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
@@ -265,6 +265,22 @@ function fightLogMarkup(current,message=''){
   const stamina=Number.isFinite(last.staminaDelta)?` · ${last.staminaDelta>=0?'+':'−'}${Math.abs(Math.round(last.staminaDelta))} сил`:'';
   return `<div class="fight-log-summary"><span>РАУНД ${damage(last.round)} · АТАКА</span><strong>${outcome}</strong></div><div class="fight-log-stats"><div class="fight-log-stat dealt"><span>СОПЕРНИК ПОТЕРЯЛ</span><strong>${dealt?'−':''}${dealt}</strong><small>здоровья</small></div><div class="fight-log-stat received"><span>ТЫ ПОТЕРЯЛ</span><strong>${received?'−':''}${received}</strong><small>здоровья</small></div></div><div class="fight-log-note">${timing}${stamina}</div>`;
 }
+function exchangeLine(side,damage,note){
+  const label=side==='player'?'ТВОЯ АТАКА':'ОТВЕТ СОПЕРНИКА';
+  return `<div class="exchange-line ${side}"><span>${label}</span><strong>${damage>0?`−${damage}`:'0'} урона</strong><small>${esc(note)}</small></div>`;
+}
+function floatDamage(side,damage,note){
+  const popup=$(`${side}-damage`);
+  if(!popup)return;
+  popup.textContent=`${damage>0?`−${damage}`:'0'} · ${note}`;
+  popup.className=`damage-float visible ${damage>0?'landed':'zero'}`;
+  void popup.offsetWidth;
+  popup.classList.add('rise');
+}
+function updateFightMeter(side,hp,max){
+  $(`${side}-hp-value`).textContent=`${hp} / ${max}`;
+  $(`${side}-hp-bar`).style.width=`${Math.max(0,Math.min(100,hp/max*100))}%`;
+}
 function fightView(message=''){
   if(!battle)return;
   const r=RIVALS.find(x=>x.id===battle.rivalId);
@@ -273,17 +289,91 @@ function fightView(message=''){
   const maxStamina=battle.maxStamina||fightMaxStamina(state),enemyMaxHp=battle.enemyMaxHp||100;
   const staminaPct=Math.max(0,Math.min(100,battle.playerStamina/maxStamina*100));
   const enemyHpPct=Math.max(0,Math.min(100,battle.enemyHp/enemyMaxHp*100));
-  modal(`<div class="dialog-body">${modalTop(`КОВЁР · РАУНД ${Math.min(10,battle.round+1)} / 10`,false)}<h2 id="dialog-title">${esc(r.name.toUpperCase())}</h2><p class="muted">«${esc(r.quote)}»</p><div class="fight-stage"><div><div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')"><span>ТЫ</span></div><div class="hp-label"><span>ЗДОРОВЬЕ</span><strong>${battle.playerHp} / 100</strong></div><div class="hp-track"><i style="width:${battle.playerHp}%"></i></div></div><span class="vs">VS</span><div><button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span>${esc(r.name)}</span></button><div class="hp-label"><span>ЗДОРОВЬЕ СОПЕРНИКА</span><strong>${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i style="width:${enemyHpPct}%"></i></div></div></div><div class="fight-tip"><strong>Сила ${state.strength}</strong> бьёт · <strong>Техника ${state.technique}</strong> расширяет зону · <strong>Выносливость ${state.endurance}</strong> даёт запас сил.</div><div class="stamina-meter" role="progressbar" aria-label="Запас сил" aria-valuemin="0" aria-valuemax="${maxStamina}" aria-valuenow="${battle.playerStamina}"><div class="stamina-label"><span>ЗАПАС СИЛ</span><strong>${battle.playerStamina} / ${maxStamina}</strong></div><div class="stamina-track ${staminaPct<25?'low':''}"><i style="width:${staminaPct}%"></i></div></div><div class="timing-caption fight-timing-caption">ЦЕНТР 100% · СЕРЕДИНА ⅔ · КРАЙ ⅓ · МИМО 0</div><div class="timing-track fight-timing-track" role="img" aria-label="Зона атаки: яркий центр — 100 процентов урона, средние части — две трети, блеклые края — одна треть, вне зоны — промах" style="height:20px;margin:10px 0 15px"><div class="timing-zone fight-timing-zone" style="left:${(0.5-timingWindow)*100}%;width:${timingWindow*200}%"></div><i class="timing-marker" id="fight-marker"></i></div><button class="primary-button attack-button" data-move="attack" ${roundLock?'disabled':''}><span><strong>АТАКОВАТЬ</strong><small>${preview?.winded?`Выдохся: +${preview.staminaDelta} сил, без урона`:`В центр: ${preview?.maxDamage??0} урона · −${preview?.staminaCost??18} сил`}</small></span><kbd>ПРОБЕЛ</kbd></button><div class="fight-log" id="fight-log" aria-live="polite">${fightLogMarkup(battle,message)}</div><div class="battle-hint">${battle.playerStamina<18?'Сил меньше 18: следующая атака восстановит запас, но не нанесёт урон.':'На 10-м раунде побеждает тот, у кого осталось больше здоровья.'}</div><button class="text-button" id="surrender-button" style="margin-top:15px">Сдаться и вернуться к железу</button></div>`,'fight');
+  modal(`<div class="dialog-body">${modalTop(`КОВЁР · РАУНД ${Math.min(10,battle.round+1)} / 10`,false)}<h2 id="dialog-title">${esc(r.name.toUpperCase())}</h2><p class="muted">«${esc(r.quote)}»</p><div class="fight-stage"><div><div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')"><span>ТЫ</span></div><div class="hp-meter"><span class="damage-float" id="player-damage" aria-hidden="true"></span><div class="hp-label"><span>ЗДОРОВЬЕ</span><strong id="player-hp-value">${battle.playerHp} / 100</strong></div><div class="hp-track"><i id="player-hp-bar" style="width:${battle.playerHp}%"></i></div></div></div><span class="vs">VS</span><div><button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span>${esc(r.name)}</span></button><div class="hp-meter"><span class="damage-float" id="enemy-damage" aria-hidden="true"></span><div class="hp-label"><span>ЗДОРОВЬЕ СОПЕРНИКА</span><strong id="enemy-hp-value">${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i id="enemy-hp-bar" style="width:${enemyHpPct}%"></i></div></div></div></div><div class="fight-tip"><strong>Сила ${state.strength}</strong> бьёт · <strong>Техника ${state.technique}</strong> расширяет зону · <strong>Выносливость ${state.endurance}</strong> даёт запас сил.</div><div class="stamina-meter" id="fight-stamina" role="progressbar" aria-label="Запас сил" aria-valuemin="0" aria-valuemax="${maxStamina}" aria-valuenow="${battle.playerStamina}"><div class="stamina-label"><span>ЗАПАС СИЛ</span><strong id="fight-stamina-value">${battle.playerStamina} / ${maxStamina}</strong></div><div class="stamina-track ${staminaPct<25?'low':''}"><i id="fight-stamina-bar" style="width:${staminaPct}%"></i></div></div><div class="timing-caption fight-timing-caption">ЦЕНТР 100% · СЕРЕДИНА ⅔ · КРАЙ ⅓ · МИМО 0</div><div class="timing-track fight-timing-track" role="img" aria-label="Зона атаки: яркий центр — 100 процентов урона, средние части — две трети, блеклые края — одна треть, вне зоны — промах" style="height:20px;margin:10px 0 15px"><div class="timing-zone fight-timing-zone" style="left:${(0.5-timingWindow)*100}%;width:${timingWindow*200}%"></div><i class="timing-marker" id="fight-marker"></i></div><button class="primary-button attack-button" data-move="attack" ${roundLock?'disabled':''}><span><strong>АТАКОВАТЬ</strong><small>${preview?.winded?`Выдохся: +${preview.staminaDelta} сил, без урона`:`В центр: ${preview?.maxDamage??0} урона · −${preview?.staminaCost??18} сил`}</small></span><kbd>ПРОБЕЛ</kbd></button><div class="fight-log" id="fight-log" aria-live="polite">${fightLogMarkup(battle,message)}</div><div class="battle-hint">${battle.playerStamina<18?'Сил меньше 18: следующая атака восстановит запас, но не нанесёт урон.':'На 10-м раунде побеждает тот, у кого осталось больше здоровья.'}</div><button class="text-button" id="surrender-button" style="margin-top:15px">Сдаться и вернуться к железу</button></div>`,'fight');
   $('dialog-content').querySelector('[data-move="attack"]')?.focus({preventScroll:true});
   const started=performance.now(),period=Math.max(390,610-state.gym*42-(state.wins%3===2?30:0)-battle.round*5);
   let stop=false;
   const frame=()=>{if(stop)return;const marker=$('fight-marker');if(marker)marker.style.left=`${(1-Math.cos((performance.now()-started)/period))*50}%`;tickFrame=requestAnimationFrame(frame);};
   cleanup=()=>{stop=true;cancelAnimationFrame(tickFrame);};tickFrame=requestAnimationFrame(frame);
 }
-function makeMove(move){if(!battle||battle.finished||roundLock)return;const timing=Number.parseFloat($('fight-marker')?.style.left||'50')/100,oldGym=state.gym,r=RIVALS.find(x=>x.id===battle.rivalId),result=fightTurn(state,battle,move,timing);if(result.error){toast(result.error,true);return;}roundLock=true;battle=result.battle;state=result.state;persist();document.querySelectorAll('[data-move]').forEach(b=>b.disabled=true);$('enemy-fighter')?.classList.add('hit-flash');$('player-fighter')?.classList.add('hit-flash');$('fight-log').innerHTML=fightLogMarkup(battle,result.message);tone('hit');setTimeout(()=>{roundLock=false;if(battle?.finished){const win=battle.result==='win';battle=null;persist();render();showFightResult(win,r,oldGym,result.message);}else if(battle)fightView(result.message);},950);}
+function makeMove(move){
+  if(!battle||battle.finished||roundLock)return;
+  const timing=Number.parseFloat($('fight-marker')?.style.left||'50')/100;
+  const previous=battle,oldGym=state.gym,r=RIVALS.find(x=>x.id===battle.rivalId);
+  const result=fightTurn(state,battle,move,timing);
+  if(result.error){toast(result.error,true);return;}
+  roundLock=true;
+  cleanup?.();cleanup=null;
+  battle=result.battle;state=result.state;persist();
+  document.querySelectorAll('[data-move]').forEach(button=>button.disabled=true);
+  $('surrender-button').disabled=true;
+  const turn=result.turn,maxStamina=battle.maxStamina||fightMaxStamina(state);
+  const timingNotes={perfect:'В яблочко · 100%',good:'Средняя зона · ⅔',weak:'Край зоны · ⅓',miss:'Мимо зоны',winded:'Сил не хватило'};
+  const staminaNote=`${turn.staminaDelta>=0?'+':'−'}${Math.abs(turn.staminaDelta)} сил`;
+  $('fight-log').innerHTML=exchangeLine('player',turn.playerDamage,`${timingNotes[turn.timingGrade]||'Атака'} · ${staminaNote}`);
+  $('player-fighter').classList.add('strike-forward');
+  $('enemy-fighter').classList.add(turn.playerDamage>0?'take-hit':'evade-hit');
+  floatDamage('enemy',turn.playerDamage,turn.winded?'НЕТ СИЛ':turn.playerDamage?'УРОН':'МИМО');
+  updateFightMeter('enemy',battle.enemyHp,battle.enemyMaxHp||100);
+  $('fight-stamina-value').textContent=`${battle.playerStamina} / ${maxStamina} (${staminaNote})`;
+  $('fight-stamina').setAttribute('aria-valuenow',String(battle.playerStamina));
+  $('fight-stamina-bar').style.width=`${Math.max(0,Math.min(100,battle.playerStamina/maxStamina*100))}%`;
+  $('fight-stamina-bar').parentElement.classList.toggle('low',battle.playerStamina/maxStamina<.25);
+  tone(turn.playerDamage>0?'perfect':'tap');
+  setTimeout(()=>{
+    if(modalKind!=='fight')return;
+    $('player-fighter').classList.remove('strike-forward');
+    $('enemy-fighter').classList.remove('take-hit','evade-hit');
+    if(turn.enemyDamage>0){
+      $('enemy-fighter').classList.add('strike-back');
+      $('player-fighter').classList.add('take-hit');
+      tone('hit');
+    }
+    floatDamage('player',turn.enemyDamage,turn.enemyDamage?'УРОН':'НЕ ОТВЕТИЛ');
+    updateFightMeter('player',battle.playerHp,100);
+    $('fight-log').insertAdjacentHTML('beforeend',exchangeLine('enemy',turn.enemyDamage,turn.enemyDamage?'Соперник атаковал':'Соперник повержен и не ответил'));
+  },800);
+  setTimeout(()=>{
+    roundLock=false;
+    if(battle?.finished){
+      const win=battle.result==='win';battle=null;persist();render();showFightResult(win,r,oldGym,result.message);
+    }else if(battle)fightView(result.message);
+  },1900);
+}
 function showFightResult(win,r,oldGym,message){if(state.won){showVictory();return;}modal(`<div class="dialog-body">${modalTop(win?'АВТОРИТЕТ ПОЛУЧЕН':'ПРОСТО РАЗМИНКА',false)}<h2 id="dialog-title" class="victory-heading" style="color:${win?'var(--gold)':'var(--muted)'}">${win?'ТВОЯ ВЗЯЛА.':'ЕЩЁ ВСТРЕТИМСЯ.'}</h2><p class="dialog-copy" style="text-align:center">${esc(win?r.winQuote:'Тебя положили на лопатки. Самооценку поднимешь жимом.')}<br>${esc(message)}</p>${win?`<div class="result-stats"><div><strong>+${r.reward} ₽</strong><span>в кассу</span></div><div><strong>${state.wins} / 12</strong><span>соперников позади</span></div><div><strong>${power(state)}</strong><span>твоя мощь</span></div></div>`:''}${state.gym>oldGym?`<div class="gym-panorama travel-panorama" style="--gym-position:${position(state.gym)}" role="img" aria-label="${esc(GYMS[state.gym].name)}"></div><div class="telegraph"><strong>НОВЫЙ ЗАЛ: ${esc(GYMS[state.gym].name.toUpperCase())}</strong><br>${esc(GYMS[state.gym].description)}</div>`:''}<button class="primary-button" data-close>${win?'ДАЛЬШЕ — БОЛЬШЕ':'ПОЙДУ ПОДКАЧАЮСЬ'} <span>↗</span></button></div>`,'result');if(win){tone('win');confetti(28);}}
-function showVictory(){modal(`<div class="dialog-body">${modalTop('ВСЕ 12 СОПЕРНИКОВ ПОБЕЖДЕНЫ')}<h2 id="dialog-title" class="victory-heading">BOSS OF THIS GYM.</h2><img class="victory-photo" src="./assets/hero-3.jpg?v=fullbody" alt="Ты стал огромным чемпионом качалки"><p class="dialog-copy" style="text-align:center">Ты пришёл сюда мешать воздух. Теперь воздух спрашивает у тебя разрешения.<br><strong>Гигабатя отдаёт тебе трон. И ключ от раздевалки.</strong></p><div class="result-stats"><div><strong>${state.workouts}</strong><span>подходов</span></div><div><strong>${Math.max(1,Math.round(state.playSeconds/60))} мин</strong><span>до легенды</span></div><div><strong>${state.respect}</strong><span>уважения</span></div></div><button class="primary-button" data-close>ОСТАТЬСЯ В СВОЁМ ЗАЛЕ <span>♛</span></button><p class="muted" style="text-align:center;margin-top:16px">Блины после себя всё равно убери.</p></div>`,'victory');tone('win');confetti(70);}
-function confetti(count){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;for(let i=0;i<count;i++){const el=document.createElement('i');el.className='celebration-spark';el.style.left=`${Math.random()*100}%`;el.style.background=['#ff653b','#8ddbcc','#e4b56d','#f0f1e8'][i%4];el.style.animationDelay=`${Math.random()*.6}s`;el.style.setProperty('--drift',`${(Math.random()-.5)*260}px`);document.body.append(el);setTimeout(()=>el.remove(),3600);}}
+const victoryTrack=new Audio('./assets/victory-theme.mp3');
+victoryTrack.preload='none';
+victoryTrack.volume=.8;
+function updateVictoryMusic(message){
+  if(modalKind!=='victory')return;
+  const button=$('victory-music-toggle'),status=$('victory-music-status');
+  if(!button||!status)return;
+  const playing=!victoryTrack.paused&&!victoryTrack.ended;
+  button.textContent=playing?'❚❚ ПАУЗА':victoryTrack.ended?'♫ СЫГРАТЬ ЕЩЁ РАЗ':'♫ ВКЛЮЧИТЬ ПЕСНЮ';
+  button.setAttribute('aria-pressed',String(playing));
+  status.textContent=message??(playing?'Играет: bo Pistolet — «Удели 40–45 минут»':victoryTrack.ended?'Трек закончился. Можно включить ещё раз.':'Песня на паузе.');
+}
+function playVictoryMusic(restart=false){
+  if(restart||victoryTrack.ended)victoryTrack.currentTime=0;
+  updateVictoryMusic('Включаем саундтрек победы…');
+  void victoryTrack.play().catch(()=>updateVictoryMusic('Браузер ждёт нажатия. Включи песню кнопкой.'));
+}
+for(const event of ['play','pause','ended'])victoryTrack.addEventListener(event,()=>updateVictoryMusic());
+victoryTrack.addEventListener('error',()=>updateVictoryMusic('Не удалось загрузить песню.'));
+function showVictory(){
+  modal(`<div class="dialog-body victory-screen">${modalTop('ВСЕ 12 СОПЕРНИКОВ ПОБЕЖДЕНЫ')}<h2 id="dialog-title" class="victory-heading">BOSS OF THIS GYM.</h2><div class="victory-music"><button type="button" id="victory-music-toggle" class="victory-music-button" aria-pressed="false">♫ ВКЛЮЧИТЬ ПЕСНЮ</button><p id="victory-music-status" role="status">Саундтрек победы</p></div><div class="victory-scene"><img class="victory-photo" src="./assets/victory-scene.jpg" alt="Ты стоишь перед золотым троном; качки вокруг восхищаются, кланяются и завидуют"></div><p class="dialog-copy" style="text-align:center">Ты пришёл сюда мешать воздух. Теперь воздух спрашивает у тебя разрешения.<br><strong>Гигабатя отдаёт тебе трон. И ключ от раздевалки.</strong></p><div class="result-stats"><div><strong>${state.workouts}</strong><span>подходов</span></div><div><strong>${Math.max(1,Math.round(state.playSeconds/60))} мин</strong><span>до легенды</span></div><div><strong>${state.respect}</strong><span>уважения</span></div></div><button class="primary-button" data-close>ОСТАТЬСЯ В СВОЁМ ЗАЛЕ <span>♛</span></button><p class="muted" style="text-align:center;margin-top:16px">Блины после себя всё равно убери.</p></div>`,'victory');
+  tone('win');
+  confetti(70,true);
+  const celebrationTimer=matchMedia('(prefers-reduced-motion: reduce)').matches?0:setInterval(()=>confetti(16,true),1800);
+  cleanup=()=>{
+    clearInterval(celebrationTimer);
+    document.querySelectorAll('.victory-spark').forEach(spark=>spark.remove());
+    victoryTrack.pause();
+    victoryTrack.currentTime=0;
+  };
+  playVictoryMusic(true);
+}
+function confetti(count,victory=false){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;for(let i=0;i<count;i++){const el=document.createElement('i');el.className=`celebration-spark${victory?' victory-spark':''}`;el.style.left=`${Math.random()*100}%`;el.style.background=['#ff653b','#8ddbcc','#e4b56d','#f0f1e8'][i%4];el.style.animationDelay=`${Math.random()*.6}s`;el.style.setProperty('--drift',`${(Math.random()-.5)*260}px`);($('game-dialog').open?$('game-dialog'):document.body).append(el);setTimeout(()=>el.remove(),3600);}}
 function resetPrompt(){modal(`<div class="dialog-body">${modalTop('СНОВА В ПОДВАЛ')}<h2 id="dialog-title">СБРОСИТЬ ВЕСЬ ПРОГРЕСС?</h2><p class="dialog-copy">Победы, мышцы и покупки исчезнут. Снова останутся только шорты и надежда.</p><div class="dialog-actions"><button class="secondary-button" data-close>Сохранить мышцы</button><button class="primary-button" id="confirm-reset">НАЧАТЬ ЗАНОВО</button></div></div>`);}
 
 document.addEventListener('keydown',ev=>{if(ev.code!=='Space'||modalKind!=='fight'||ev.repeat)return;if(document.activeElement?.closest?.('#surrender-button, #enemy-fighter'))return;ev.preventDefault();makeMove('attack');});
@@ -327,6 +417,7 @@ function handleClick(ev){
     case 'work-button': timedAction('work');break;
     case 'fight-button': startFight();break;
     case 'victory-button': showVictory();break;
+    case 'victory-music-toggle': if(victoryTrack.paused)playVictoryMusic();else victoryTrack.pause();break;
     case 'help-button': help();break;
     case 'achievements-button': showAchievements();break;
     case 'sound-toggle': sound=!sound;persist();render();tone('perfect');break;

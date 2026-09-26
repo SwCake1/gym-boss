@@ -287,6 +287,32 @@
   .fight-stage .fighter-image,.fight-stage .fighter-image.enemy.portrait-trigger{width:min(100%,160px)}
 }
 
+/* A round reads left to right: the player's impact, then the rival's reply. */
+.hp-meter{position:relative}
+.damage-float{position:absolute;z-index:3;left:50%;bottom:22px;white-space:nowrap;pointer-events:none;opacity:0;font:900 clamp(15px,3vw,25px)/1 'Barlow Condensed',var(--display);letter-spacing:.4px;text-shadow:0 2px 9px #000,0 0 18px #000}
+.damage-float.visible{opacity:1}
+.damage-float.landed{color:var(--orange)}
+#enemy-damage.landed{color:var(--cyan)}
+.damage-float.zero{color:#d6d9d1}
+.damage-float.rise{animation:damage-rise .95s ease-out both}
+@keyframes damage-rise{0%{opacity:0;transform:translate(-50%,10px) scale(.8)}18%{opacity:1;transform:translate(-50%,-7px) scale(1.15)}72%{opacity:1;transform:translate(-50%,-26px)}100%{opacity:0;transform:translate(-50%,-43px)}}
+.fighter-image.strike-forward{animation:strike-forward .52s ease-out}
+.fighter-image.strike-back{animation:strike-back .52s ease-out}
+.fighter-image.take-hit{animation:take-hit .53s ease-out}
+.fighter-image.evade-hit{animation:evade-hit .53s ease-out}
+@keyframes strike-forward{0%,100%{transform:translateX(0)}40%{transform:translateX(13px) scale(1.035)}65%{transform:translateX(5px)}}
+@keyframes strike-back{0%,100%{transform:translateX(0)}40%{transform:translateX(-13px) scale(1.035)}65%{transform:translateX(-5px)}}
+@keyframes take-hit{0%,100%{transform:translateX(0);filter:none}20%{transform:translateX(-8px) rotate(-2deg);filter:brightness(1.65)}42%{transform:translateX(6px) rotate(1deg)}65%{transform:translateX(-3px)}}
+@keyframes evade-hit{0%,100%{transform:translateX(0)}35%{transform:translateX(8px) rotate(2deg)}65%{transform:translateX(3px)}}
+.exchange-line{display:grid;grid-template-columns:1fr auto;gap:2px 9px;padding:9px 11px;border-left:3px solid var(--cyan);background:#1c3735}
+.exchange-line+.exchange-line{margin-top:8px}
+.exchange-line.enemy{border-left-color:var(--orange);background:#302927}
+.exchange-line>span{font-size:10px;font-weight:800;letter-spacing:.7px;color:var(--cyan)}
+.exchange-line.enemy>span{color:var(--orange)}
+.exchange-line strong{font-size:16px;line-height:1.1}
+.exchange-line small{grid-column:1/-1;color:#bfd0cb;font-size:12px}
+@media(max-width:520px){.damage-float{font-size:16px}.exchange-line{padding:7px 9px}.exchange-line strong{font-size:14px}}
+
 /* Keep the face in frame when the wide portrait is cropped into a short scene. */
 @media(max-width:760px){.arena-scene .hero-image{object-position:center top}}
 
@@ -306,3 +332,18 @@
 /* Override the generic campaign span size so milestone names fit the route. */
 .campaign-strip .campaign-stop-name{font-family:var(--body);font-size:11px;line-height:1.2}
 @media(max-width:640px){.campaign-strip .campaign-stop-name{width:60px;font-size:9px;line-height:1.15;white-space:normal}}
+
+/* The final boss reveal keeps the full crowd visible while the music and lights play. */
+#game-dialog:has(.victory-screen){width:min(820px,calc(100% - 28px));border-color:#ad8b56}
+.victory-screen .victory-heading{font-size:clamp(42px,7vw,65px)!important;color:var(--gold);text-shadow:0 0 22px #e4b56d66;margin:5px 0 12px!important}
+.victory-music{display:flex;align-items:center;gap:14px;margin:0 0 14px;padding:10px 12px;border:1px solid #8b704c;background:#302b24;border-radius:4px}
+.victory-music-button{flex:none;border:1px solid var(--gold);background:#5c442b;color:#ffdf9b;padding:10px 14px;border-radius:3px;font-size:12px;font-weight:800;letter-spacing:.5px}
+.victory-music-button:hover{background:#795733}
+.victory-music-button[aria-pressed="true"]{background:#9b6b32;color:#fff2cb}
+.victory-music p{font-size:12px;line-height:1.35;color:#e1cda8}
+.victory-scene{position:relative;overflow:hidden;border:1px solid #a87f48;border-radius:5px;box-shadow:0 0 28px #e4b56d3d;animation:victory-halo 3s ease-in-out infinite}
+.victory-screen .victory-photo{display:block;width:100%;height:auto;max-height:none;aspect-ratio:3/2;object-fit:contain}
+.victory-scene::after{content:'';position:absolute;top:0;bottom:0;left:-35%;width:25%;background:linear-gradient(90deg,transparent,#ffe5a51f,transparent);transform:skewX(-18deg);pointer-events:none;animation:victory-gleam 5s ease-in-out infinite}
+@keyframes victory-halo{50%{box-shadow:0 0 42px #e4b56d88}}
+@keyframes victory-gleam{0%,18%{left:-35%}68%,100%{left:115%}}
+@media(max-width:640px){.victory-screen{padding:20px}.victory-music{flex-direction:column;align-items:stretch;text-align:center}.victory-music-button{width:100%}.victory-screen .victory-heading{font-size:clamp(38px,10vw,58px)!important}}
