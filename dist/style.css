@@ -347,3 +347,56 @@
 @keyframes victory-halo{50%{box-shadow:0 0 42px #e4b56d88}}
 @keyframes victory-gleam{0%,18%{left:-35%}68%,100%{left:115%}}
 @media(max-width:640px){.victory-screen{padding:20px}.victory-music{flex-direction:column;align-items:stretch;text-align:center}.victory-music-button{width:100%}.victory-screen .victory-heading{font-size:clamp(38px,10vw,58px)!important}}
+
+/* Three short training games use different inputs and visual feedback. */
+.training-dialog .dialog-copy{margin-bottom:10px}
+.minigame-content{min-width:0}
+.minigame-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.minigame-heading strong{font:800 20px var(--display);color:var(--cyan);white-space:nowrap}
+.minigame-content .primary-button{margin-top:14px;align-items:center}
+.minigame-content .primary-button kbd{font:800 11px var(--body);padding:5px 8px;border:1px solid #713c2b;border-radius:3px}
+.minigame-content .timing-result{min-height:34px;margin:12px 0 0;line-height:1.3}
+.minigame-content .workout-score{margin-top:13px}
+.lift-game{display:grid;grid-template-columns:130px minmax(0,1fr);align-items:center;gap:15px;min-height:195px;padding:14px;background:#102329;border:1px solid #3c5b57;border-radius:4px;overflow:hidden}
+.lift-track{position:relative;width:70px;height:160px;margin:auto;background:linear-gradient(#14272a,#203b39);border:1px solid #5c7770;border-radius:4px}
+.lift-track:before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to top,transparent 0 24px,#80928a39 25px 26px);pointer-events:none}
+.lift-target{position:absolute;bottom:65%;left:0;right:0;height:20%;background:#8ddbcc77;border-block:2px solid var(--cyan);box-shadow:0 0 22px #8ddbcc44}
+.lift-fill{position:absolute;bottom:0;left:0;right:0;height:0;background:linear-gradient(#e4b56d77,#e4b56d22)}
+.lift-track.overloaded .lift-fill{background:linear-gradient(#ff653b88,#ff653b22)}
+.lift-weight{position:absolute;left:50%;bottom:0;width:102px;height:22px;display:flex;align-items:center;justify-content:space-between;transform:translate(-50%,50%);filter:drop-shadow(0 5px 8px #0009)}
+.lift-weight b{height:7px;flex:1;background:linear-gradient(#c7d1c6,#71847f);border-radius:3px}
+.lift-weight i{width:18px;height:31px;background:linear-gradient(90deg,#394642,#9faaa1,#333f3d);border:2px solid #b7c3b8;border-radius:3px}
+.lift-readout{display:grid;gap:4px;text-align:center}
+.lift-readout strong{font:900 55px/1 var(--display);color:var(--gold)}
+.lift-readout span{font:700 10px/1.4 var(--body);letter-spacing:.4px;color:#a9c1b9}
+.lift-button{touch-action:none;user-select:none;-webkit-user-select:none}
+.lift-button.holding{background:var(--gold);border-color:var(--gold);box-shadow:0 0 22px #e4b56d66}
+.grip-cue{min-height:100px;padding:14px;display:flex;align-items:center;gap:16px;border:1px solid #596b60;background:#20332f;border-radius:4px}
+.grip-cue span{font:900 67px/1 var(--display);color:var(--gold);min-width:70px;text-align:center}
+.grip-cue strong{font:800 22px/1.1 var(--display);letter-spacing:.4px}
+.grip-cue.correct{border-color:var(--cyan);box-shadow:inset 0 0 20px #8ddbcc33}
+.grip-cue.wrong{border-color:var(--orange);box-shadow:inset 0 0 20px #ff653b33}
+.grip-clock{height:5px;margin:10px 0;background:#2a403f;overflow:hidden}
+.grip-clock i{display:block;width:100%;height:100%;background:var(--gold);transform-origin:left}
+@keyframes grip-countdown{to{transform:scaleX(0)}}
+.grip-rule{font-size:12px;color:#b6c9c3;line-height:1.35;margin:9px 0 13px}
+.grip-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.grip-choice{display:grid;justify-items:center;gap:4px;min-width:0;padding:9px 5px;background:#213a3b;border:1px solid #52736d;border-radius:4px;text-align:center}
+.grip-choice:hover{background:#30504e;border-color:var(--cyan);transform:translateY(-2px)}
+.grip-choice span{font:900 32px/1 var(--display);color:var(--cyan)}
+.grip-choice strong{font:800 10px/1.15 var(--body);letter-spacing:.2px}
+.grip-choice small{font-size:10px;color:var(--muted)}
+.cardio-heart{height:86px;display:grid;place-items:center;font:900 76px/1 var(--display);color:#bc7565;text-shadow:0 0 20px #e4584133}
+.cardio-heart.in-zone{color:var(--cyan);text-shadow:0 0 25px #8ddbcc88}
+.cardio-heart.overheated{color:var(--orange);text-shadow:0 0 25px #ff653b88}
+.cardio-heart.beat{animation:cardio-beat .35s ease-out}
+@keyframes cardio-beat{35%{transform:scale(1.22)}70%{transform:scale(.94)}}
+.cardio-readout{display:flex;align-items:baseline;justify-content:center;gap:10px;margin:1px 0 13px}
+.cardio-readout strong{font:900 50px/1 var(--display);color:var(--ink)}
+.cardio-readout span{font:700 10px var(--body);letter-spacing:.5px;color:var(--muted)}
+.cardio-gauge{position:relative;height:27px;background:#243b3c;border:1px solid #5c7470;border-radius:4px;overflow:hidden}
+.cardio-gauge .cardio-zone{position:absolute;z-index:2;top:0;bottom:0;background:#8ddbcc55;border-inline:2px solid var(--cyan);box-shadow:0 0 18px #8ddbcc66}
+.cardio-gauge i{display:block;width:36%;height:100%;background:linear-gradient(90deg,#426d69,#e4b56d);transition:width .11s linear}
+.cardio-scale{display:flex;justify-content:space-between;margin-top:6px;font:700 9px var(--body);letter-spacing:.3px;color:var(--muted)}
+.cardio-scale span:nth-child(2){color:var(--cyan)}
+@media(max-width:640px){.training-dialog{padding:20px}.training-dialog .workout-stage{gap:12px}.training-dialog .training-gif{max-height:155px}.lift-game{min-height:165px;padding:10px}.lift-track{height:140px}.grip-cue{min-height:78px}.grip-cue span{font-size:50px;min-width:50px}.grip-cue strong{font-size:19px}}

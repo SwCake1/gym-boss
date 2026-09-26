@@ -5,7 +5,7 @@ const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const SAVE_KEY='gymboss:iron-king:v1';
 const stats={strength:'Сила',technique:'Техника',endurance:'Выносливость'};
 const statHints={strength:'Определяет урон твоей атаки. Больше силы — сильнее каждый удар.',technique:'Расширяет зелёную зону тайминга в борьбе. С высокой техникой проще попасть точно.',endurance:'Увеличивает максимальный запас сил в борьбе. Он может быть больше 100.'};
-const exercises={strength:{name:'Качаться',icon:'↥',call:'КАЧАЙСЯ. НЕ ДУМАЙ.',cue:'Выжимай, когда маркер в зелёной зоне.'},technique:{name:'Школа захвата',icon:'⌁',call:'МЯГКО СТЕЛЕШЬ.',cue:'Лови момент. Техника сильнее понтов.'},endurance:{name:'Кардио',icon:'↟',call:'ДЫШИ. НЕ СДАВАЙСЯ.',cue:'Держи ритм. Лестница завтра тебя вспомнит.'}};
+const exercises={strength:{name:'Качаться',icon:'↥',call:'КАЧАЙСЯ. НЕ ДУМАЙ.',cue:'Держи вес и отпускай его в зелёной зоне.',tag:'удержание'},technique:{name:'Школа захвата',icon:'⌁',call:'МЯГКО СТЕЛЕШЬ.',cue:'Смотри, откуда идёт захват, и выбирай уход.',tag:'выбор приёма'},endurance:{name:'Кардио',icon:'↟',call:'ДЫШИ. НЕ СДАВАЙСЯ.',cue:'Поддерживай пульс в зелёной зоне, не перегревайся.',tag:'держи темп'}};
 const ranks=[{name:'ПОКА ЕЩЁ<br>ДРИЩ',desc:'Гриф тяжелее твоих аргументов.',headline:'ТВОЙ ПЕРВЫЙ<br><em>ПОДХОД.</em>',quote:'«В этом зале тебя пока зовут “эй”.»'},{name:'УЖЕ<br>НЕ СМЕШНО',desc:'Футболка начала задавать вопросы.',headline:'МАССА ЕСТЬ.<br><em>ВОПРОСЫ?</em>',quote:'«Бро, ты случайно не стал шире двери?»'},{name:'ЖИВАЯ<br>МАШИНА',desc:'Штанга просит тебя о страховке.',headline:'СВЯТОЙ<br><em>ПАМП.</em>',quote:'«Твои трапеции видны из космоса.»'},{name:'БОЛЬШОЙ<br>МАЛЬЧИК',desc:'Сила есть. Осталось забрать трон.',headline:'BOSS OF<br><em>THIS GYM.</em>',quote:'«Ты не занимаешь место. Ты его создаёшь.»'}];
 const achievements=[['first-workout','Первый памп','Завершить первую тренировку'],['first-win','Коврик теперь твой','Победить первого соперника'],['first-gear','Приоделся, красавчик','Купить экипировку'],['gym-two','Вырос из подвала','Открыть второй зал'],['legend','BOSS OF THIS GYM','Забрать все 12 побед']];
 const coachLines=['Штанга сама себя не поднимет. Хотя тебя, может, и поднимет.','Кто пропускает день ног, тот пропускает жизнь.','Три сотни баксов? У нас пока тридцать пять рублей.','Два подхода назад ты был другим человеком.','Правило зала: блины после себя убери. Эго можешь оставить.','Пот — это слёзы твоей лени. Вытри скамейку.','Ну что, fucking strong или пока just fucking tired?'];
@@ -46,7 +46,7 @@ function gainsPop(gains,heroGains=false){
   gainsTimer=setTimeout(()=>{recentGains=null;renderStats();renderEnergy();},6000);
 }
 
-function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${{strength:'Сила',technique:'Техника',endurance:'Выносливость'}[k]}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>+40 энергии · 6 сек.</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>+${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
+function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${{strength:'Сила',technique:'Техника',endurance:'Выносливость'}[k]} · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>+40 энергии · 6 сек.</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>+${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
 function fightMarkup(){
   const rival=nextRival(state);
   if(!rival)return `<div class="fight-panel"><span class="group-title">ФИНАЛ</span><h2>ТРЕНАЖЁРЫ ТЕПЕРЬ СЛУШАЮТСЯ ТЕБЯ.</h2><p class="dialog-copy">Все 12 соперников побеждены. Трон твой.</p><button id="victory-button" class="primary-button">МОЙ ТРИУМФ <span>♛</span></button></div>`;
@@ -141,87 +141,157 @@ function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.i
 function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;$('dialog-content').innerHTML=html;if(!$('game-dialog').open)$('game-dialog').showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
-function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Качайся.</strong> В каждом подходе 6 повторений. Жми кнопку или пробел, когда бегунок в зелёной зоне. Точность даёт больше роста. В новых залах зона уже, а техника расширяет её.</li><li><strong>Восстанавливайся.</strong> Отдых бесплатный. На шаурму и экипировку заработай подработкой или победами.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Музыки нет. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
+function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата выбирай уход от показанного приёма. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся.</strong> Отдых бесплатный. На шаурму и экипировку заработай подработкой или победами.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
 function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ ШКАФ С КУБКАМИ')}<h2 id="dialog-title">ЗАСЛУГИ ПЕРЕД ЖЕЛЕЗОМ.</h2><div class="achievement-list">${achievements.map(([id,name,desc])=>`<div class="achievement-item ${state.achievements.includes(id)?'':'locked'}">${state.achievements.includes(id)?'✓':'○'} ${name}<small>${desc}</small></div>`).join('')}</div></div>`);}
 
+function trainingShell(kind,game){
+  const exercise=exercises[kind];
+  modal(`<div class="dialog-body training-dialog ${kind}-training">${modalTop('ТРЕНИРОВКА · −18 ЭНЕРГИИ')}<h2 id="dialog-title">${exercise.call}</h2><p class="dialog-copy">${exercise.cue}</p><div class="workout-stage"><img class="workout-photo training-gif" src="./assets/training-${kind}.gif" alt="${exercise.name}: анимированный мем с тренировкой"><div class="minigame-content">${game}</div></div></div>`,'training');
+  document.querySelector('.arena-scene').classList.add('scene-training');
+}
+function finishTraining(kind,quality){
+  cleanup?.();cleanup=null;
+  modalKind=null;
+  closeModal();
+  if(apply(train(state,kind,quality),{heroGains:true})){
+    tone('win');
+    if(state.workouts%7===0)setTimeout(()=>toast(coachLines[Math.floor(state.workouts/7)%coachLines.length]),1600);
+  }
+}
+function strengthTraining(){
+  const total=3;
+  trainingShell('strength',`<div class="minigame-heading"><span class="tiny-label">ЖИМ · ${total} ПОДХОДА</span><strong id="lift-count">1 / ${total}</strong></div><div class="lift-game"><div class="lift-track" id="lift-track" aria-label="Высота штанги: отпусти в зелёной зоне"><div class="lift-target"></div><div class="lift-fill" id="lift-fill"></div><div class="lift-weight" id="lift-weight" aria-hidden="true"><i></i><b></b><i></i></div></div><div class="lift-readout"><strong id="lift-percent">0%</strong><span>ЗЕЛЁНАЯ ЗОНА = ЧИСТЫЙ ЖИМ</span></div></div><button class="primary-button lift-button" id="lift-button">ДЕРЖИ И ОТПУСТИ <kbd>ПРОБЕЛ</kbd></button><div class="workout-score" id="lift-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="lift-result" role="status">Зажми кнопку или пробел. Отпусти, когда штанга в зелёной зоне.</p>`);
+  let rep=0,sum=0,charge=0,holding=false,active=true,last=performance.now(),raf=0,nextTimer=0;
+  const button=$('lift-button');
+  const paint=()=>{
+    $('lift-fill').style.height=`${charge}%`;
+    $('lift-weight').style.bottom=`${charge}%`;
+    $('lift-percent').textContent=`${Math.round(charge)}%`;
+    $('lift-track').classList.toggle('overloaded',charge>90);
+  };
+  const hold=()=>{if(active&&!holding&&!button.disabled){holding=true;last=performance.now();button.classList.add('holding');$('lift-result').textContent='Держи... и отпускай в зелёной зоне!';}};
+  const release=()=>{
+    if(!active||!holding)return;
+    holding=false;button.classList.remove('holding');button.disabled=true;
+    const quality=charge>=98?.2:Math.max(.2,1-Math.abs(charge-75)/45);
+    sum+=quality;
+    $('lift-score').children[rep].className=quality>=.65?'hit':'miss';
+    $('lift-result').textContent=quality>=.85?'ЧИСТЫЙ ЖИМ! ШТАНГА В ШОКЕ.':quality>=.55?'Засчитано. Ещё подход.':'Слишком рано или перегруз. Держи ровнее.';
+    tone(quality>=.85?'perfect':'hit');
+    nextTimer=setTimeout(()=>{
+      if(!active)return;
+      rep++;
+      if(rep===total){finishTraining('strength',sum/total);return;}
+      charge=0;paint();button.disabled=false;
+      $('lift-count').textContent=`${rep+1} / ${total}`;
+      $('lift-result').textContent='Следующий жим. Подними вес до зелёной зоны.';
+    },420);
+  };
+  const frame=now=>{
+    if(!active)return;
+    const delta=Math.min(60,now-last);last=now;
+    if(holding){charge=Math.min(100,charge+delta*(72+state.gym*3)/1000);paint();if(charge>=100)release();}
+    raf=requestAnimationFrame(frame);
+  };
+  const onKeyDown=event=>{if(event.code==='Space'&&modalKind==='training'){event.preventDefault();if(!event.repeat)hold();}};
+  const onKeyUp=event=>{if(event.code==='Space'&&modalKind==='training'){event.preventDefault();release();}};
+  const onPointerUp=()=>release();
+  button.addEventListener('pointerdown',event=>{event.preventDefault();hold();});
+  window.addEventListener('pointerup',onPointerUp);
+  document.addEventListener('keydown',onKeyDown);
+  document.addEventListener('keyup',onKeyUp);
+  cleanup=()=>{active=false;holding=false;cancelAnimationFrame(raf);clearTimeout(nextTimer);window.removeEventListener('pointerup',onPointerUp);document.removeEventListener('keydown',onKeyDown);document.removeEventListener('keyup',onKeyUp);};
+  raf=requestAnimationFrame(frame);
+}
+function techniqueTraining(){
+  const prompts=[{sign:'←',name:'ЗАХВАТ СЛЕВА',answer:2},{sign:'↓',name:'ДАВИТ СВЕРХУ',answer:1},{sign:'→',name:'ЗАХВАТ СПРАВА',answer:0}];
+  const choices=[['←','УЙТИ ВЛЕВО'],['↓','НЫРОК'],['→','УЙТИ ВПРАВО']];
+  const total=4,limit=Math.max(1450,2150-state.gym*120-Math.min(150,state.workouts*2));
+  trainingShell('technique',`<div class="minigame-heading"><span class="tiny-label">ЧИТАЙ СОПЕРНИКА · ${total} ПРИЁМА</span><strong id="grip-count">1 / ${total}</strong></div><div class="grip-cue" id="grip-cue" role="status"><span id="grip-sign">←</span><strong id="grip-name">ЗАХВАТ СЛЕВА</strong></div><div class="grip-clock"><i id="grip-clock"></i></div><p class="grip-rule">Слева — уйди вправо. Справа — влево. Сверху — нырок.</p><div class="grip-choices">${choices.map(([icon,label],index)=>`<button type="button" class="grip-choice" data-counter="${index}"><span>${icon}</span><strong>${label}</strong><small>${index+1}</small></button>`).join('')}</div><div class="workout-score" id="grip-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="grip-result" role="status">Выбирай кнопку или клавиши 1–3.</p>`);
+  let step=0,sum=0,current=Math.floor(Math.random()*3),started=0,active=true,answered=false,cueTimer=0,nextTimer=0;
+  const buttons=[...document.querySelectorAll('.grip-choice')];
+  const cue=()=>{
+    if(!active)return;
+    answered=false;
+    const prompt=prompts[current];
+    $('grip-sign').textContent=prompt.sign;
+    $('grip-name').textContent=prompt.name;
+    $('grip-count').textContent=`${step+1} / ${total}`;
+    $('grip-cue').classList.remove('correct','wrong');
+    buttons.forEach(button=>button.disabled=false);
+    const clock=$('grip-clock');clock.style.animation='none';void clock.offsetWidth;clock.style.animation=`grip-countdown ${limit}ms linear both`;
+    started=performance.now();
+    cueTimer=setTimeout(()=>answer(-1),limit);
+  };
+  const answer=choice=>{
+    if(!active||answered)return;
+    answered=true;clearTimeout(cueTimer);
+    const correct=choice===prompts[current].answer;
+    const quality=correct?Math.max(.65,1-(performance.now()-started)/limit*.35):.2;
+    sum+=quality;
+    $('grip-score').children[step].className=correct?'hit':'miss';
+    $('grip-cue').classList.add(correct?'correct':'wrong');
+    $('grip-result').textContent=correct?'ЧИСТЫЙ УХОД!':choice<0?'Задумался — тебя уже бросили.':'Не тот уход. Читай направление!';
+    buttons.forEach(button=>button.disabled=true);
+    tone(correct?'perfect':'error');
+    nextTimer=setTimeout(()=>{
+      if(!active)return;
+      step++;
+      if(step===total){finishTraining('technique',sum/total);return;}
+      current=(current+1+Math.floor(Math.random()*2))%3;
+      $('grip-result').textContent='Новый захват — реагируй!';
+      cue();
+    },430);
+  };
+  const onKey=event=>{
+    if(modalKind!=='training'||!['Digit1','Digit2','Digit3'].includes(event.code))return;
+    event.preventDefault();if(!event.repeat)answer(Number(event.code.at(-1))-1);
+  };
+  buttons.forEach((button,index)=>button.onclick=()=>answer(index));
+  document.addEventListener('keydown',onKey);
+  cleanup=()=>{active=false;clearTimeout(cueTimer);clearTimeout(nextTimer);document.removeEventListener('keydown',onKey);};
+  cue();
+}
+function cardioTraining(){
+  const low=54+state.gym,high=78-state.gym,duration=6500;
+  trainingShell('endurance',`<div class="minigame-heading"><span class="tiny-label">КАРДИО · ДЕРЖИ ТЕМП</span><strong id="cardio-time">7 сек.</strong></div><div class="cardio-heart" id="cardio-heart" aria-hidden="true">♥</div><div class="cardio-readout"><strong id="cardio-pulse">36</strong><span>УСЛОВНЫЙ ПУЛЬС</span></div><div class="cardio-gauge" role="img" aria-label="Держи пульс в зелёной зоне"><span class="cardio-zone" style="left:${low}%;width:${high-low}%"></span><i id="cardio-fill"></i></div><div class="cardio-scale"><span>МЕДЛЕННО</span><span>ТВОЙ ТЕМП</span><span>ПЕРЕГРЕВ</span></div><button class="primary-button cardio-button" id="cardio-button">СДЕЛАТЬ ШАГ <kbd>ПРОБЕЛ</kbd></button><p class="timing-result" id="cardio-result" role="status">Нажимай, чтобы разогнаться. В зелёной зоне держи ровный темп.</p>`);
+  let pulse=36,inZone=0,active=true,raf=0,started=performance.now(),previous=started,lastMessage='';
+  const pump=()=>{
+    if(!active)return;
+    pulse=Math.min(100,pulse+11);
+    const heart=$('cardio-heart');heart.classList.remove('beat');void heart.offsetWidth;heart.classList.add('beat');
+    tone(pulse>=low&&pulse<=high?'perfect':'tap');
+  };
+  const frame=now=>{
+    if(!active)return;
+    const delta=Math.min(80,now-previous);previous=now;
+    const elapsed=Math.min(duration,now-started);
+    pulse=Math.max(25,pulse-delta*(7.5+state.gym)/1000);
+    if(elapsed>600&&pulse>=low&&pulse<=high)inZone+=delta;
+    $('cardio-pulse').textContent=String(Math.round(pulse));
+    $('cardio-fill').style.width=`${pulse}%`;
+    $('cardio-time').textContent=`${Math.max(0,Math.ceil((duration-elapsed)/1000))} сек.`;
+    const message=pulse<low?'Добавь шагов — темп низкий.':pulse>high?'Сбавь обороты — перегрев!':'Вот он, чемпионский ритм. Держи!';
+    if(message!==lastMessage){$('cardio-result').textContent=message;lastMessage=message;}
+    $('cardio-heart').classList.toggle('in-zone',pulse>=low&&pulse<=high);
+    $('cardio-heart').classList.toggle('overheated',pulse>high);
+    if(elapsed>=duration){finishTraining('endurance',Math.max(.2,Math.min(1,inZone/(duration-600))));return;}
+    raf=requestAnimationFrame(frame);
+  };
+  const onKey=event=>{if(event.code==='Space'&&modalKind==='training'){event.preventDefault();if(!event.repeat)pump();}};
+  $('cardio-button').onclick=pump;
+  document.addEventListener('keydown',onKey);
+  cleanup=()=>{active=false;cancelAnimationFrame(raf);document.removeEventListener('keydown',onKey);};
+  raf=requestAnimationFrame(frame);
+}
 function startTraining(kind){
   if(working||battle)return;
   if(state.energy<18){toast('Сначала восстанови энергию.',true);return;}
-  const exercise=exercises[kind];
-  if(!exercise)return;
+  if(!exercises[kind])return;
   working=true;
-  const duration=Math.max(1500,1800-state.gym*75-Math.min(120,state.workouts*2.5)+Math.min(100,Math.max(0,state.technique-6)*2));
-  const zoneWidth=Math.max(20,Math.min(34,32-state.gym*2.5-Math.min(5,state.workouts*.1)+Math.min(6,Math.max(0,state.technique-6)*.15)));
-  const total=6;
-  let count=0,sum=0,repStart=performance.now(),raf=0,nextRepTimer=0,stopped=false,pressed=false;
-  modal(`<div class="dialog-body">${modalTop('ТРЕНИРОВКА · −18 ЭНЕРГИИ')}<h2 id="dialog-title">${exercise.call}</h2><p class="dialog-copy">${exercise.cue} Шесть повторений. Один шаг к легенде.</p><div class="workout-stage"><img class="workout-photo training-gif" src="./assets/training-${kind}.gif" alt="${exercise.name}: анимированный мем с тренировкой"><div><div class="rep-count"><span id="rep-number">1</span><small> / 6</small></div><span class="tiny-label">ПОВТОРЕНИЕ</span><div class="timing-track" aria-label="Лови маркер в центральной зелёной зоне"><div class="timing-zone" style="left:${(100-zoneWidth)/2}%;width:${zoneWidth}%"></div><i class="timing-marker" id="rep-marker"></i></div><div class="timing-result" id="rep-result">Лови момент.</div><button class="primary-button" id="rep-button">${kind==='strength'?'ЖМИ!':kind==='technique'?'ЛОВИ!':'ПРИСЕДАЙ!'} <span>SPACE</span></button><div class="workout-score" id="rep-score">${Array(total).fill('<i></i>').join('')}</div><p class="training-instructions" style="margin-top:13px">Кнопка или пробел · зелёная зона = больше роста</p></div></div></div>`,'training');
-  document.querySelector('.arena-scene').classList.add('scene-training');
-
-  const progress=()=>Math.min(1,(performance.now()-repStart)/duration);
-  const hit=()=>{
-    if(stopped||pressed)return;
-    pressed=true;
-    const p=progress(),quality=Math.max(.2,1-Math.abs(p-.5)*70/zoneWidth);
-    sum+=quality;
-    const dot=$('rep-score')?.children[count];
-    if(dot)dot.className=quality>=.65?'hit':'miss';
-    const out=$('rep-result');
-    if(out)out.textContent=quality>=.86?'ЧИСТО! БАТЯ ГОРДИТСЯ.':quality>=.6?'Хороший повтор.':'Засчитано. Но можешь лучше.';
-    $('rep-button').disabled=true;
-    tone(quality>=.86?'perfect':'hit');
-    cancelAnimationFrame(raf);
-    nextRepTimer=setTimeout(()=>{advance();if(!stopped)raf=requestAnimationFrame(frame);},200);
-  };
-  const finish=()=>{
-    stopped=true;
-    clearTimeout(nextRepTimer);
-    cancelAnimationFrame(raf);
-    const result=train(state,kind,sum/total);
-    cleanup=null;
-    document.removeEventListener('keydown',onKey);
-    modalKind=null;
-    closeModal();
-    if(apply(result,{heroGains:true})){
-      tone('win');
-      if(state.workouts%7===0)setTimeout(()=>toast(coachLines[Math.floor(state.workouts/7)%coachLines.length]),1600);
-    }
-  };
-  const advance=()=>{
-    if(stopped)return;
-    count++;
-    if(count===total){finish();return;}
-    repStart=performance.now();
-    pressed=false;
-    $('rep-number').textContent=count+1;
-    $('rep-button').disabled=false;
-    $('rep-result').textContent='Следующий повтор. Держи ритм.';
-  };
-  const frame=()=>{
-    if(stopped)return;
-    const p=progress(),marker=$('rep-marker');
-    if(marker)marker.style.left=`${p*100}%`;
-    if(p>=1){
-      if(!pressed){const dot=$('rep-score')?.children[count];if(dot)dot.className='miss';}
-      advance();
-      if(stopped)return;
-    }
-    raf=requestAnimationFrame(frame);
-  };
-  const onKey=ev=>{
-    if(ev.code==='Space'&&modalKind==='training'){
-      ev.preventDefault();
-      if(!ev.repeat)hit();
-    }
-  };
-  document.addEventListener('keydown',onKey);
-  $('rep-button').onclick=hit;
-  cleanup=()=>{
-    stopped=true;
-    clearTimeout(nextRepTimer);
-    cancelAnimationFrame(raf);
-    document.removeEventListener('keydown',onKey);
-  };
-  raf=requestAnimationFrame(frame);
+  if(kind==='strength')strengthTraining();
+  else if(kind==='technique')techniqueTraining();
+  else cardioTraining();
 }
 function timedAction(kind){
   if(working||battle)return;

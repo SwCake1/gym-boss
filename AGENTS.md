@@ -11,7 +11,7 @@
 
 1. Check `git status --short --branch`, `git remote -v`, and the relevant files. Preserve unrelated work and untracked files.
 2. Keep rule changes in the engine and UI changes in the app. Reuse the existing state helpers and render functions before adding another copy of the same logic.
-3. Keep gameplay balance and saved-game compatibility unless the task explicitly changes them. Inspect `sanitizeState` and `migrateBattle` before changing saved state or combat data.
+3. The game is still in development and has not had a full release. Breaking changes to existing browser saves are acceptable; do not add migrations or compatibility handling just to preserve old saves. Keep gameplay balance unless the task explicitly changes it.
 
 ## Verification
 
@@ -24,7 +24,7 @@ node tests/engine.test.mjs
 git diff --check
 ```
 
-For interaction changes, serve `dist/` locally and check the affected flow in a browser. Include training, rest or work, the shop, combat, reload persistence, and new-game reset when those paths are touched. Use a separate browser origin or profile for destructive playtests so an existing save is not reset.
+For interaction changes, serve `dist/` locally and check the affected flow in a browser. Test training, recovery, the shop, combat, persistence, or new-game reset when the change touches those paths. Existing browser saves are disposable during development; no separate origin or profile is required to protect them.
 
 ## Sites publication
 
