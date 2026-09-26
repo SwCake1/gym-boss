@@ -361,6 +361,7 @@ function startRestGame(){
       field.append(spark);spark.addEventListener('animationend',()=>spark.remove(),{once:true});
     }
     for(const orb of orbs){const dx=orb.x+27-x,dy=orb.y+27-y,distance=Math.max(28,Math.hypot(dx,dy));const force=4+100/(distance+20);orb.vx+=dx/distance*force+(Math.random()-.5)*2;orb.vy+=dy/distance*force-9;}
+    if(pops===0)field.querySelector('.rest-field-prompt')?.remove();
     pops++;$('rest-pips').children[pops-1].classList.add('filled');$('utility-status').textContent=`${pops} / 6 жмяков · ${pops===6?'силы вернулись!':'никаких ошибок'}`;
     tone(pops===6?'perfect':'tap');
     if(pops===6){complete=true;field.disabled=true;timer=setTimeout(()=>{if(!active)return;active=false;closeModal();apply(rest(state),{eventEligible:true});},850);}
