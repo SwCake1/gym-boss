@@ -23,19 +23,20 @@ function loadoutNames(character){
   if(character.buff)names.push(`${shopById.get(character.buff.id)?.name} ×${character.buff.charges}`);
   return names;
 }
-let state=createState(),battle=null,tab='gym',sound=false,audio=null,modalKind=null,cleanup=null,working=false,saveFailed=false,tickFrame=0,roundLock=false,saved=false,recentGains=null,gainsTimer=0,heroGainsTimer=0;
+let state=createState(),battle=null,tab='gym',sound=false,audio=null,modalKind=null,cleanup=null,working=false,saveFailed=false,tickFrame=0,roundLock=false,saved=false,recentGains=null,recentTrainingKind=null,gainsTimer=0,heroGainsTimer=0;
 try{const raw=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(raw?.state){state=sanitizeState(raw.state);saved=true;sound=!!raw.sound;battle=migrateBattle(state,raw.battle);}}catch{saved=false;}
 
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({state,battle:battle&&!battle.finished?battle:null,sound}));saveFailed=false;}catch{saveFailed=true;}const el=$('save-status');if(el){el.textContent=saveFailed?'Сохранение недоступно в этом браузере':'Прогресс сохранён в этом браузере';el.classList.toggle('save-warning',saveFailed);}}
 function tone(kind='tap'){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')void audio.resume();const freqs=kind==='win'?[220,330,440,660]:kind==='perfect'?[440,660]:kind==='hit'?[85,55]:kind==='error'?[160,120]:[260];freqs.forEach((f,i)=>{const osc=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+i*.085;osc.type=kind==='hit'?'triangle':'sine';osc.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.055,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+.17);osc.connect(g);g.connect(audio.destination);osc.start(t);osc.stop(t+.2);});}catch{sound=false;}}
 function toast(message,error=false){const el=document.createElement('div');el.className=`toast${error?' error':''}`;el.textContent=message;$('toasts').append(el);setTimeout(()=>el.remove(),4400);if(error)tone('error');}
-function apply(result,{quiet=false,heroGains=false}={}){if(result.error){toast(result.error,true);return false;}const oldAchievements=new Set(state.achievements),before=state;state=result.state;const gains=Object.fromEntries([...statKeys,'energy'].map(k=>[k,Math.max(0,state[k]-before[k])]).filter(([,gain])=>gain>0));persist();if(Object.keys(gains).length)gainsPop(gains,heroGains);else render();if(!quiet&&result.message)toast(result.message);for(const id of state.achievements){if(!oldAchievements.has(id)){const a=achievements.find(x=>x[0]===id);setTimeout(()=>toast(`Достижение: ${a?.[1]??id}`),500);}}return true;}
-function gainsPop(gains,heroGains=false){
+function apply(result,{quiet=false,heroGains=false,trainingKind=null}={}){if(result.error){toast(result.error,true);return false;}const oldAchievements=new Set(state.achievements),before=state;state=result.state;const gains=Object.fromEntries([...statKeys,'energy'].map(k=>[k,state[k]-before[k]]).filter(([,gain])=>gain!==0));persist();if(Object.keys(gains).length)gainsPop(gains,heroGains,trainingKind);else render();if(!quiet&&result.message)toast(result.message);for(const id of state.achievements){if(!oldAchievements.has(id)){const a=achievements.find(x=>x[0]===id);setTimeout(()=>toast(`Достижение: ${a?.[1]??id}`),500);}}return true;}
+function gainsPop(gains,heroGains=false,trainingKind=null){
   recentGains=gains;
+  recentTrainingKind=trainingKind;
   render();
   if(heroGains){
     const el=$('floating-gains');
-    el.textContent=statKeys.filter(k=>gains[k]>0).map(k=>`${stats[k].toUpperCase()} +${gains[k]}`).join('\n');
+    el.textContent=(trainingKind?[trainingKind]:statKeys.filter(k=>gains[k]>0)).map(k=>`${stats[k].toUpperCase()} +${gains[k]||0}`).join('\n');
     el.classList.remove('gain-pop');
     void el.offsetWidth;
     el.classList.add('gain-pop');
@@ -43,10 +44,10 @@ function gainsPop(gains,heroGains=false){
     heroGainsTimer=setTimeout(()=>{el.textContent='';el.classList.remove('gain-pop');},2600);
   }
   clearTimeout(gainsTimer);
-  gainsTimer=setTimeout(()=>{recentGains=null;renderStats();renderEnergy();},6000);
+  gainsTimer=setTimeout(()=>{recentGains=null;recentTrainingKind=null;renderStats();renderEnergy();},6000);
 }
 
-function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${{strength:'Сила',technique:'Техника',endurance:'Выносливость'}[k]} · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>+40 энергии · 6 сек.</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>+${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
+function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>+40 энергии · 6 сек.</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>+${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
 function fightMarkup(){
   const rival=nextRival(state);
   if(!rival)return `<div class="fight-panel"><span class="group-title">ФИНАЛ</span><h2>ТРЕНАЖЁРЫ ТЕПЕРЬ СЛУШАЮТСЯ ТЕБЯ.</h2><p class="dialog-copy">Все 12 соперников побеждены. Трон твой.</p><button id="victory-button" class="primary-button">МОЙ ТРИУМФ <span>♛</span></button></div>`;
@@ -79,14 +80,21 @@ function renderStats(){
     const gain=recentGains?.[k]||0;
     const before=Math.min(100,Math.max(0,state[k]-gain));
     const after=Math.min(100,state[k]);
-    return `<div class="stat ${gain?'gained':''}"><div><span class="stat-name">${stats[k]} <button type="button" class="stat-help" aria-label="${stats[k]}: ${statHints[k]}">?<span class="stat-tooltip" role="tooltip">${statHints[k]}</span></button></span><strong>${state[k]}${gain?` (+${gain})`:''}</strong></div><div class="stat-track"><i style="width:${after}%"></i>${gain&&after>before?`<b class="stat-gain-segment" style="left:${before}%;width:${after-before}%"></b>`:''}</div></div>`;
+    return `<div class="stat ${gain?'gained':''}"><div><span class="stat-name">${stats[k]} <button type="button" class="stat-help" aria-label="${stats[k]}: ${statHints[k]}">?<span class="stat-tooltip" role="tooltip">${statHints[k]}</span></button></span><strong>${state[k]}${gain||recentTrainingKind===k?` (+${gain})`:''}</strong></div><div class="stat-track"><i style="width:${after}%"></i>${gain&&after>before?`<b class="stat-gain-segment" style="left:${before}%;width:${after-before}%"></b>`:''}</div></div>`;
   }).join('');
 }
 function renderEnergy(){
-  $('energy-value').textContent=`${state.energy} / 100${recentGains?.energy?` (+${recentGains.energy})`:''}`;
-  $('energy-value').closest('.energy-box').classList.toggle('gained',!!recentGains?.energy);
+  const change=recentGains?.energy||0;
+  $('energy-value').textContent=`${state.energy} / 100${change?` (${change>0?'+':''}${change})`:''}`;
+  const box=$('energy-value').closest('.energy-box');
+  box.classList.toggle('gained',change>0);
+  box.classList.toggle('spent',change<0);
   $('energy-bar').style.width=`${state.energy}%`;
   $('energy-bar').style.background=state.energy<20?'var(--orange)':'var(--cyan)';
+  const segment=$('energy-change-segment');
+  segment.className=change<0?'energy-spent-segment':change>0?'energy-gain-segment':'';
+  segment.style.left=`${change<0?state.energy:state.energy-change}%`;
+  segment.style.width=`${Math.abs(change)}%`;
   $('energy-hint').textContent=state.energy<20?'Без сил? Отдых бесплатный. Батя разрешил.':state.energy<50?'Ещё подход — и пора на скамейку.':'Полон сил. Почти как настоящий качок.';
 }
 function renderLoadout(){
@@ -146,14 +154,14 @@ function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ
 
 function trainingShell(kind,game){
   const exercise=exercises[kind];
-  modal(`<div class="dialog-body training-dialog ${kind}-training">${modalTop('ТРЕНИРОВКА · −18 ЭНЕРГИИ')}<h2 id="dialog-title">${exercise.call}</h2><p class="dialog-copy">${exercise.cue}</p><div class="workout-stage"><img class="workout-photo training-gif" src="./assets/training-${kind}.gif" alt="${exercise.name}: анимированный мем с тренировкой"><div class="minigame-content">${game}</div></div></div>`,'training');
+  modal(`<div class="dialog-body training-dialog ${kind}-training">${modalTop('ТРЕНИРОВКА · −18 ЭНЕРГИИ')}<h2 id="dialog-title">${exercise.call}</h2><p class="dialog-copy">${exercise.cue}</p><p class="training-reward">НАГРАДА: ${stats[kind].toUpperCase()} +0–6${state.buff?.id==='protein'?' · ПРОТЕИН: ЕЩЁ +2':''}</p><div class="workout-stage"><img class="workout-photo training-gif" src="./assets/training-${kind}.gif" alt="${exercise.name}: анимированный мем с тренировкой"><div class="minigame-content">${game}</div></div></div>`,'training');
   document.querySelector('.arena-scene').classList.add('scene-training');
 }
 function finishTraining(kind,quality){
   cleanup?.();cleanup=null;
   modalKind=null;
   closeModal();
-  if(apply(train(state,kind,quality),{heroGains:true})){
+  if(apply(train(state,kind,quality),{heroGains:true,trainingKind:kind})){
     tone('win');
     if(state.workouts%7===0)setTimeout(()=>toast(coachLines[Math.floor(state.workouts/7)%coachLines.length]),1600);
   }
@@ -173,7 +181,7 @@ function strengthTraining(){
   const release=()=>{
     if(!active||!holding)return;
     holding=false;button.classList.remove('holding');button.disabled=true;
-    const quality=charge>=98?.2:Math.max(.2,1-Math.abs(charge-75)/45);
+    const quality=charge>=98?0:Math.max(0,1-Math.abs(charge-75)/45);
     sum+=quality;
     $('lift-score').children[rep].className=quality>=.65?'hit':'miss';
     $('lift-result').textContent=quality>=.85?'ЧИСТЫЙ ЖИМ! ШТАНГА В ШОКЕ.':quality>=.55?'Засчитано. Ещё подход.':'Слишком рано или перегруз. Держи ровнее.';
@@ -207,8 +215,8 @@ function techniqueTraining(){
   const prompts=[{sign:'←',name:'ЗАХВАТ СЛЕВА',answer:2},{sign:'↓',name:'ДАВИТ СВЕРХУ',answer:1},{sign:'→',name:'ЗАХВАТ СПРАВА',answer:0}];
   const choices=[['←','УЙТИ ВЛЕВО'],['↓','НЫРОК'],['→','УЙТИ ВПРАВО']];
   const total=4,limit=Math.max(1450,2150-state.gym*120-Math.min(150,state.workouts*2));
-  trainingShell('technique',`<div class="minigame-heading"><span class="tiny-label">ЧИТАЙ СОПЕРНИКА · ${total} ПРИЁМА</span><strong id="grip-count">1 / ${total}</strong></div><div class="grip-cue" id="grip-cue" role="status"><span id="grip-sign">←</span><strong id="grip-name">ЗАХВАТ СЛЕВА</strong></div><div class="grip-clock"><i id="grip-clock"></i></div><p class="grip-rule">Слева — уйди вправо. Справа — влево. Сверху — нырок.</p><div class="grip-choices">${choices.map(([icon,label],index)=>`<button type="button" class="grip-choice" data-counter="${index}"><span>${icon}</span><strong>${label}</strong><small>${index+1}</small></button>`).join('')}</div><div class="workout-score" id="grip-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="grip-result" role="status">Выбирай кнопку или клавиши 1–3.</p>`);
-  let step=0,sum=0,current=Math.floor(Math.random()*3),started=0,active=true,answered=false,cueTimer=0,nextTimer=0;
+  trainingShell('technique',`<div class="minigame-heading"><span class="tiny-label">ЧИТАЙ СОПЕРНИКА · ${total} ПРИЁМА</span><strong id="grip-count">0 / ${total}</strong></div><div class="grip-cue" id="grip-cue" role="status"><span id="grip-sign">?</span><strong id="grip-name">ПРИГОТОВЬСЯ К ЗАХВАТУ</strong></div><div class="grip-clock"><i id="grip-clock"></i></div><p class="grip-rule">Слева — уйди вправо. Справа — влево. Сверху — нырок.</p><div class="grip-choices">${choices.map(([icon,label],index)=>`<button type="button" class="grip-choice" data-counter="${index}" disabled><span>${icon}</span><strong>${label}</strong><small><b>${index+1}</b> · ${icon}</small></button>`).join('')}</div><button type="button" class="primary-button training-start" id="grip-start">НАЧАТЬ ТРЕНИРОВКУ <kbd>ПРОБЕЛ</kbd></button><div class="workout-score" id="grip-score">${Array(total).fill('<i></i>').join('')}</div><p class="timing-result" id="grip-result" role="status">Сначала изучи приёмы. Затем нажми «Начать» или пробел; отвечай стрелками ← ↓ → либо цифрами 1–3.</p>`);
+  let step=0,sum=0,current=Math.floor(Math.random()*3),started=0,active=true,running=false,answered=false,cueTimer=0,nextTimer=0;
   const buttons=[...document.querySelectorAll('.grip-choice')];
   const cue=()=>{
     if(!active)return;
@@ -220,14 +228,15 @@ function techniqueTraining(){
     $('grip-cue').classList.remove('correct','wrong');
     buttons.forEach(button=>button.disabled=false);
     const clock=$('grip-clock');clock.style.animation='none';void clock.offsetWidth;clock.style.animation=`grip-countdown ${limit}ms linear both`;
+    const choices=$('grip-cue').parentElement.querySelector('.grip-choices');choices.classList.remove('cue-active');void choices.offsetWidth;choices.classList.add('cue-active');
     started=performance.now();
     cueTimer=setTimeout(()=>answer(-1),limit);
   };
   const answer=choice=>{
-    if(!active||answered)return;
+    if(!active||!running||answered)return;
     answered=true;clearTimeout(cueTimer);
     const correct=choice===prompts[current].answer;
-    const quality=correct?Math.max(.65,1-(performance.now()-started)/limit*.35):.2;
+    const quality=correct?Math.max(0,1-(performance.now()-started)/limit):0;
     sum+=quality;
     $('grip-score').children[step].className=correct?'hit':'miss';
     $('grip-cue').classList.add(correct?'correct':'wrong');
@@ -243,21 +252,26 @@ function techniqueTraining(){
       cue();
     },430);
   };
+  const start=()=>{if(!active||running)return;running=true;$('grip-start').remove();cue();};
+  const keyChoices={ArrowLeft:0,ArrowDown:1,ArrowRight:2,Digit1:0,Digit2:1,Digit3:2,Numpad1:0,Numpad2:1,Numpad3:2};
   const onKey=event=>{
-    if(modalKind!=='training'||!['Digit1','Digit2','Digit3'].includes(event.code))return;
-    event.preventDefault();if(!event.repeat)answer(Number(event.code.at(-1))-1);
+    if(modalKind!=='training')return;
+    if(!running&&event.code==='Space'){event.preventDefault();if(!event.repeat)start();return;}
+    if(!(event.code in keyChoices))return;
+    event.preventDefault();if(!event.repeat)answer(keyChoices[event.code]);
   };
+  $('grip-start').onclick=start;
   buttons.forEach((button,index)=>button.onclick=()=>answer(index));
   document.addEventListener('keydown',onKey);
   cleanup=()=>{active=false;clearTimeout(cueTimer);clearTimeout(nextTimer);document.removeEventListener('keydown',onKey);};
-  cue();
 }
 function cardioTraining(){
   const low=54+state.gym,high=78-state.gym,duration=6500;
-  trainingShell('endurance',`<div class="minigame-heading"><span class="tiny-label">КАРДИО · ДЕРЖИ ТЕМП</span><strong id="cardio-time">7 сек.</strong></div><div class="cardio-heart" id="cardio-heart" aria-hidden="true">♥</div><div class="cardio-readout"><strong id="cardio-pulse">36</strong><span>УСЛОВНЫЙ ПУЛЬС</span></div><div class="cardio-gauge" role="img" aria-label="Держи пульс в зелёной зоне"><span class="cardio-zone" style="left:${low}%;width:${high-low}%"></span><i id="cardio-fill"></i></div><div class="cardio-scale"><span>МЕДЛЕННО</span><span>ТВОЙ ТЕМП</span><span>ПЕРЕГРЕВ</span></div><button class="primary-button cardio-button" id="cardio-button">СДЕЛАТЬ ШАГ <kbd>ПРОБЕЛ</kbd></button><p class="timing-result" id="cardio-result" role="status">Нажимай, чтобы разогнаться. В зелёной зоне держи ровный темп.</p>`);
-  let pulse=36,inZone=0,active=true,raf=0,started=performance.now(),previous=started,lastMessage='';
+  trainingShell('endurance',`<div class="minigame-heading"><span class="tiny-label">КАРДИО · ДЕРЖИ ТЕМП</span><strong id="cardio-time">7 сек.</strong></div><div class="cardio-heart" id="cardio-heart" aria-hidden="true">♥</div><div class="cardio-readout"><strong id="cardio-pulse">36</strong><span>УСЛОВНЫЙ ПУЛЬС</span></div><div class="cardio-gauge" role="img" aria-label="Держи пульс в зелёной зоне"><span class="cardio-zone" style="left:${low}%;width:${high-low}%"></span><i id="cardio-fill"></i></div><div class="cardio-scale"><span>МЕДЛЕННО</span><span>ТВОЙ ТЕМП</span><span>ПЕРЕГРЕВ</span></div><button class="primary-button cardio-button" id="cardio-button">НАЧАТЬ КАРДИО <kbd>ПРОБЕЛ</kbd></button><p class="timing-result" id="cardio-result" role="status">Изучи шкалу. Нажми кнопку или пробел, чтобы начать; затем держи пульс в зелёной зоне.</p>`);
+  let pulse=36,inZone=0,active=true,running=false,raf=0,started=0,previous=0,lastMessage='';
+  const start=()=>{if(!active||running)return;running=true;started=performance.now();previous=started;$('cardio-button').firstChild.textContent='СДЕЛАТЬ ШАГ ';$('cardio-result').textContent='Нажимай, чтобы разогнаться. В зелёной зоне держи ровный темп.';raf=requestAnimationFrame(frame);};
   const pump=()=>{
-    if(!active)return;
+    if(!active||!running)return;
     pulse=Math.min(100,pulse+11);
     const heart=$('cardio-heart');heart.classList.remove('beat');void heart.offsetWidth;heart.classList.add('beat');
     tone(pulse>=low&&pulse<=high?'perfect':'tap');
@@ -275,14 +289,13 @@ function cardioTraining(){
     if(message!==lastMessage){$('cardio-result').textContent=message;lastMessage=message;}
     $('cardio-heart').classList.toggle('in-zone',pulse>=low&&pulse<=high);
     $('cardio-heart').classList.toggle('overheated',pulse>high);
-    if(elapsed>=duration){finishTraining('endurance',Math.max(.2,Math.min(1,inZone/(duration-600))));return;}
+    if(elapsed>=duration){finishTraining('endurance',Math.max(0,Math.min(1,inZone/(duration-600))));return;}
     raf=requestAnimationFrame(frame);
   };
-  const onKey=event=>{if(event.code==='Space'&&modalKind==='training'){event.preventDefault();if(!event.repeat)pump();}};
-  $('cardio-button').onclick=pump;
+  const onKey=event=>{if(event.code==='Space'&&modalKind==='training'){event.preventDefault();if(!event.repeat){if(running)pump();else start();}}};
+  $('cardio-button').onclick=()=>{if(running)pump();else start();};
   document.addEventListener('keydown',onKey);
   cleanup=()=>{active=false;cancelAnimationFrame(raf);document.removeEventListener('keydown',onKey);};
-  raf=requestAnimationFrame(frame);
 }
 function startTraining(kind){
   if(working||battle)return;
@@ -455,6 +468,7 @@ function resetGame(){
   $('floating-gains').textContent='';
   $('floating-gains').classList.remove('gain-pop');
   recentGains=null;
+  recentTrainingKind=null;
   state=createState();
   tab='gym';
   modalKind=null;

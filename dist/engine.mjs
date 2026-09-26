@@ -33,7 +33,6 @@ export const SHOP = Object.freeze([
 ]);
 
 const STATS = ['strength', 'technique', 'endurance'];
-const SECONDARY = { strength: 'endurance', technique: 'strength', endurance: 'technique' };
 const LABELS = { strength: 'сила', technique: 'техника', endurance: 'выносливость' };
 const GEAR_GAINS = { wraps: { technique: 5 }, shoes: { endurance: 7 }, belt: { strength: 9 } };
 const ACHIEVEMENTS = ['first-workout', 'first-win', 'first-gear', 'gym-two', 'legend'];
@@ -104,15 +103,14 @@ export function train(state, kind, quality = 0.5) {
   const safeQuality = finite(quality, 0.5, 0, 1, false);
   const protein = state.buff?.id === 'protein';
   const gains = { strength: 0, technique: 0, endurance: 0 };
-  gains[kind] = 3 + Math.round(safeQuality * 3) + (protein ? 2 : 0);
-  gains[SECONDARY[kind]] = 1;
+  gains[kind] = Math.round(safeQuality * 6) + (protein ? 2 : 0);
   const next = { ...state, energy: state.energy - 18, workouts: state.workouts + 1, respect: state.respect + 1 };
   for (const key of STATS) {
     next[key] = Math.min(500, state[key] + gains[key]);
     gains[key] = next[key] - state[key];
   }
   if (protein) next.buff = state.buff.charges > 1 ? { ...state.buff, charges: state.buff.charges - 1 } : null;
-  const message = `${safeQuality >= 0.85 ? 'Чистый памп!' : safeQuality >= 0.45 ? 'Крепкий подход.' : 'Главное — пришёл.'} ${LABELS[kind]} +${gains[kind]}, ${LABELS[SECONDARY[kind]]} +${gains[SECONDARY[kind]]}${protein ? '. Батин протеин сработал' : ''}.`;
+  const message = `${safeQuality >= 0.85 ? 'Чистый памп!' : safeQuality >= 0.45 ? 'Крепкий подход.' : 'Главное — пришёл.'} ${LABELS[kind]} +${gains[kind]}${protein ? '. Батин протеин сработал' : ''}.`;
   return { state: commit(next, message), message, gains };
 }
 

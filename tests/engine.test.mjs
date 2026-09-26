@@ -43,6 +43,18 @@ assert.equal(nextRival(initial).id, 'rival-01');
 assert.equal(buy(initial, 'belt').state, initial);
 assert.equal(buy(initial, 'missing-item').state, initial);
 assert.ok(train(freeze({ ...initial, energy: 0 }), 'strength', 1).error.includes('18'));
+for (const [kind, otherStats] of [
+  ['strength', ['technique', 'endurance']],
+  ['technique', ['strength', 'endurance']],
+  ['endurance', ['strength', 'technique']],
+]) {
+  for (const [quality, gain] of [[0, 0], [0.5, 3], [1, 6]]) {
+    const result = train(initial, kind, quality);
+    assert.equal(result.gains[kind], gain);
+    assert.ok(otherStats.every(stat => result.gains[stat] === 0));
+    assert.equal(result.state.energy, initial.energy - 18);
+  }
+}
 assert.ok(beginFight(freeze({ ...initial, energy: 19 })).error.includes('20'));
 assert.ok(work(freeze({ ...initial, energy: 11 })).error.includes('12'));
 assert.equal(rest(initial).state, initial);
@@ -71,7 +83,7 @@ let supplemented = buy(freeze({ ...initial, money: 1000 }), 'protein').state;
 for (let charge = 3; charge >= 1; charge--) {
   const result = train(freeze(supplemented), 'technique', 1);
   assert.equal(result.gains.technique, 8);
-  assert.equal(result.gains.strength, 1);
+  assert.equal(result.gains.strength, 0);
   supplemented = result.state;
   assert.equal(supplemented.buff?.charges ?? 0, charge - 1);
 }
@@ -206,8 +218,8 @@ function runCampaign(timings) {
 const novice = runCampaign([0.5, 0]);
 const capable = runCampaign([0.5, 0.5, 0.5, 0]);
 const expert = runCampaign([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0]);
-assert.ok(capable.attempts >= 18 && capable.attempts <= 28, '75% accuracy should mean a substantial but manageable campaign');
-assert.ok(capable.state.workouts >= 25 && capable.state.workouts <= 40);
+assert.ok(capable.attempts >= 18 && capable.attempts <= 34, `75% accuracy should mean a substantial but manageable campaign: ${JSON.stringify({attempts:capable.attempts,workouts:capable.state.workouts})}`);
+assert.ok(capable.state.workouts >= 25 && capable.state.workouts <= 44);
 assert.ok(novice.attempts > capable.attempts && novice.attempts < 60, '50% accuracy is harder, not a dead end');
 assert.ok(novice.state.workouts > capable.state.workouts);
 assert.ok(expert.attempts < capable.attempts && expert.state.workouts < capable.state.workouts);
