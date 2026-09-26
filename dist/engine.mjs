@@ -145,8 +145,9 @@ export function rest(state) {
 
 export function work(state, quality = 1) {
   if (state.energy < 12) return failure(state, 'Для подработки нужно 12 энергии. Сначала отдохни.');
-  const earned = 20 + state.gym * 15 + Math.round(finite(quality, 1, 0, 1, false) * 15);
-  const message = `Разложил блины по весу. Заработал ${earned} ₽.`;
+  const accuracy = finite(quality, 1, 0, 1, false);
+  const earned = 20 + state.gym * 15 + Math.round(accuracy * 15);
+  const message = `Полотенец в корзине: ${Math.round(accuracy * 3)} из 3. Заработал ${earned} ₽.`;
   return { state: commit({ ...state, money: state.money + earned, energy: state.energy - 12, totalWork: state.totalWork + 1 }, message), message, earned };
 }
 

@@ -47,7 +47,7 @@ function gainsPop(gains,heroGains=false,trainingKind=null){
   gainsTimer=setTimeout(()=>{recentGains=null;recentTrainingKind=null;renderStats();renderEnergy();},6000);
 }
 
-function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>Антистресс · +40 энергии</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>Разложи блины · ${20+state.gym*15}–${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
+function gymMarkup(){return `<div class="training-heading"><h2>ВЫБЕРИ ТРЕНИРОВКУ</h2></div><div class="training-list">${Object.entries(exercises).map(([k,e])=>`<button class="training-card" data-train="${k}" ${state.energy<18?'disabled':''}><span class="exercise-icon" aria-hidden="true">${e.icon}</span><span><strong>${e.name}</strong><small>${stats[k]} +0–6 · ${e.tag}</small></span><span class="action-price">18 ⚡</span></button>`).join('')}</div><div class="support-group"><span class="group-title">МЕЖДУ ПОДХОДАМИ</span><div class="utility-actions"><button id="rest-button" ${state.energy===100?'disabled':''}><span aria-hidden="true">☾</span><strong>Отдых</strong><small>Антистресс · +40 энергии</small></button><button id="work-button" ${state.energy<12?'disabled':''}><span aria-hidden="true">₽</span><strong>Подработка</strong><small>Метатель полотенец · ${20+state.gym*15}–${35+state.gym*15} ₽ · −12 энергии</small></button></div></div>`;}
 function fightMarkup(){
   const rival=nextRival(state);
   if(!rival)return `<div class="fight-panel"><span class="group-title">ФИНАЛ</span><h2>ТРЕНАЖЁРЫ ТЕПЕРЬ СЛУШАЮТСЯ ТЕБЯ.</h2><p class="dialog-copy">Все 12 соперников побеждены. Трон твой.</p><button id="victory-button" class="primary-button">МОЙ ТРИУМФ <span>♛</span></button></div>`;
@@ -149,7 +149,7 @@ function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.i
 function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;$('dialog-content').innerHTML=html;if(!$('game-dialog').open)$('game-dialog').showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
-function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай в любом месте антистресса: шарики пружинят, энергия возвращается без штрафов. На подработке раскладывай блины от лёгкого к тяжёлому: ошибки уменьшают оплату.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
+function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай в любом месте антистресса: шарики пружинят, энергия возвращается без штрафов. На подработке оттяни полотенце и отпусти: три броска в корзину определяют премию.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики: одной только мощи для победы мало.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
 function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ ШКАФ С КУБКАМИ')}<h2 id="dialog-title">ЗАСЛУГИ ПЕРЕД ЖЕЛЕЗОМ.</h2><div class="achievement-list">${achievements.map(([id,name,desc])=>`<div class="achievement-item ${state.achievements.includes(id)?'':'locked'}">${state.achievements.includes(id)?'✓':'○'} ${name}<small>${desc}</small></div>`).join('')}</div></div>`);}
 
 function trainingShell(kind,game){
@@ -372,24 +372,173 @@ function startWorkGame(){
   if(working||battle)return;
   if(state.energy<12){toast('Сначала передохни: для работы нужно 12 энергии.',true);return;}
   working=true;
-  const weights=[5,10,15,20,25];
-  const plates=shuffled(weights);
   const minimum=20+state.gym*15,maximum=35+state.gym*15;
-  modal(`<div class="dialog-body utility-game work-game">${modalTop('ПОДРАБОТКА · −12 ЭНЕРГИИ')}<h2 id="dialog-title">РАЗЛОЖИ БЛИНЫ, БРАТ.</h2><p class="dialog-copy">Нажимай на блины от лёгкого к тяжёлому. За ошибки тренер урежет премию.</p><p class="training-reward">ОПЛАТА ${minimum}–${maximum} ₽ · ПОСЛЕ ЗАВЕРШЕНИЯ</p><div class="plate-rack">${plates.map(weight=>`<button type="button" class="work-plate" data-weight="${weight}" aria-label="Блин ${weight} килограммов"><span>${weight}</span><small>кг</small></button>`).join('')}</div><div class="utility-game-status" id="utility-status" role="status">Следующий: 5 кг · ошибок: 0</div></div>`,'utility');
-  let next=0,errors=0,active=true,timer=0;
-  const finish=()=>{if(!active)return;active=false;closeModal();apply(work(state,Math.max(0,1-errors*.2)),{eventEligible:true});tone('perfect');};
-  document.querySelectorAll('.work-plate').forEach(button=>button.addEventListener('click',()=>{
-    if(!active||button.disabled)return;
-    if(Number(button.dataset.weight)!==weights[next]){
-      errors++;tone('error');button.classList.remove('wrong');void button.offsetWidth;button.classList.add('wrong');
-      $('utility-status').textContent=`Ищи ${weights[next]} кг · ошибок: ${errors}`;
-      return;
+  modal('<div class="dialog-body utility-game work-game">'+modalTop('ПОДРАБОТКА · −12 ЭНЕРГИИ')+
+    '<h2 id="dialog-title">МЕТАТЕЛЬ ПОЛОТЕНЕЦ.</h2>'+
+    '<p class="dialog-copy">Оттяни полотенце от рогатки и отпусти. Попади в корзину три раза. Траектория подскажет направление; тренажёр может отбить бросок.</p>'+
+    '<p class="training-reward">ОПЛАТА '+minimum+'–'+maximum+' ₽ · +5 ₽ ЗА КАЖДОЕ ПОПАДАНИЕ</p>'+
+    '<canvas class="towel-canvas" id="towel-canvas" width="1280" height="680" tabindex="0" aria-label="Поле для броска полотенец. Тяни от рогатки мышью или пальцем и отпускай. Стрелками настрой прицел, пробелом брось."></canvas>'+
+    '<div class="towel-controls"><span>ТЯНИ И ОТПУСКАЙ · ИЛИ СТРЕЛКИ + ПРОБЕЛ</span><button type="button" class="towel-throw" id="towel-throw">БРОСИТЬ <kbd>ПРОБЕЛ</kbd></button></div>'+
+    '<div class="towel-pips" id="towel-pips" aria-label="Три попытки"><i></i><i></i><i></i></div>'+
+    '<div class="utility-game-status" id="utility-status" role="status">Бросок 1 / 3 · прицелься без спешки</div></div>','utility');
+  const canvas=$('towel-canvas'),ctx=canvas.getContext('2d');
+  if(!ctx){closeModal();toast('В этом браузере не удалось открыть мини-игру.',true);return;}
+  ctx.scale(2,2);
+  const sling={x:145,y:230},rim={left:490,right:590,y:216};
+  let active=true,dragging=false,inFlight=false,shot=0,hits=0,lastHit=false,raf=0,timer=0,last=performance.now(),launchAt=0;
+  let pull={x:-100,y:39},towel={x:sling.x,y:sling.y,vx:0,vy:0,spin:0,bounces:0};
+  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+  const rounded=(x,y,w,h,r=8)=>{
+    ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  };
+  const setPull=(x,y)=>{
+    pull={x:clamp(x-sling.x,-135,-25),y:clamp(y-sling.y,-25,105)};
+  };
+  const point=event=>{
+    const rect=canvas.getBoundingClientRect();
+    return {x:(event.clientX-rect.left)*640/rect.width,y:(event.clientY-rect.top)*340/rect.height};
+  };
+  const finish=()=>{
+    if(!active)return;
+    active=false;
+    closeModal();
+    apply(work(state,hits/3),{eventEligible:true});
+    tone('perfect');
+  };
+  const endShot=hit=>{
+    if(!active||!inFlight)return;
+    inFlight=false;
+    lastHit=hit;
+    if(hit)hits++;
+    $('towel-pips').children[shot-1].classList.add(hit?'hit':'miss');
+    $('utility-status').textContent=hit?'В корзину! +5 ₽ к оплате.':'Мимо корзины. Базовая оплата остаётся.';
+    tone(hit?'perfect':'error');
+    timer=setTimeout(()=>{
+      if(!active)return;
+      timer=0;
+      if(shot===3){finish();return;}
+      towel={x:sling.x,y:sling.y,vx:0,vy:0,spin:0,bounces:0};
+      pull={x:-100,y:39};
+      $('towel-throw').disabled=false;
+      $('utility-status').textContent='Бросок '+(shot+1)+' / 3 · попаданий: '+hits;
+    },950);
+  };
+  const throwTowel=()=>{
+    if(!active||inFlight||shot>=3||timer)return;
+    shot++;
+    dragging=false;
+    inFlight=true;
+    launchAt=performance.now();
+    towel={x:sling.x,y:sling.y,vx:-pull.x*.16,vy:-pull.y*.16,spin:0,bounces:0};
+    $('towel-throw').disabled=true;
+    $('utility-status').textContent='Бросок '+shot+' / 3 · полотенце летит!';
+    tone('tap');
+  };
+  const drawTowel=(x,y,spin,ghost=false)=>{
+    ctx.save();ctx.translate(x,y);ctx.rotate(spin);
+    ctx.shadowColor=ghost?'transparent':'#0009';ctx.shadowBlur=8;ctx.shadowOffsetY=5;
+    ctx.fillStyle=ghost?'#d6fff2aa':'#f1eee3';
+    rounded(-15,-8,30,16,4);ctx.fill();
+    ctx.shadowColor='transparent';ctx.fillStyle=ghost?'#9bf2d58c':'#93cdbb';
+    ctx.fillRect(-11,-3,22,3);ctx.fillRect(-10,3,19,2);
+    ctx.restore();
+  };
+  const draw=()=>{
+    const wall=ctx.createLinearGradient(0,0,0,340);
+    wall.addColorStop(0,'#10292d');wall.addColorStop(.72,'#183d42');wall.addColorStop(1,'#143239');
+    ctx.fillStyle=wall;ctx.fillRect(0,0,640,340);
+    ctx.fillStyle='#f6cf8240';ctx.beginPath();ctx.moveTo(65,0);ctx.lineTo(125,0);ctx.lineTo(240,265);ctx.lineTo(5,265);ctx.fill();
+    ctx.fillStyle='#a4fbdb20';ctx.beginPath();ctx.moveTo(470,0);ctx.lineTo(520,0);ctx.lineTo(640,275);ctx.lineTo(380,275);ctx.fill();
+    ctx.strokeStyle='#42666a66';ctx.lineWidth=4;
+    for(let x=30;x<640;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,260);ctx.stroke();}
+    ctx.fillStyle='#173039';ctx.fillRect(0,278,640,62);
+    ctx.strokeStyle='#aa855466';ctx.lineWidth=2;
+    for(let x=-30;x<640;x+=75){ctx.beginPath();ctx.moveTo(x,340);ctx.lineTo(x+37,278);ctx.stroke();}
+    // A bench and a springy gym bumper give bad throws a playful second chance.
+    ctx.fillStyle='#09262c';rounded(250,290,145,14,5);ctx.fill();
+    ctx.strokeStyle='#637c72';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(277,300);ctx.lineTo(264,330);ctx.moveTo(372,300);ctx.lineTo(384,330);ctx.stroke();
+    ctx.fillStyle='#d59b5c';ctx.beginPath();ctx.arc(335,235,21,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#19383b';ctx.beginPath();ctx.arc(335,235,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#edc18a';ctx.font='900 12px system-ui';ctx.fillText('5',331,239);
+    ctx.fillStyle='#0a2429';rounded(477,214,126,91,13);ctx.fill();
+    ctx.fillStyle='#31545b';rounded(490,224,100,72,8);ctx.fill();
+    ctx.strokeStyle='#92cabc88';ctx.lineWidth=2;
+    for(let y=239;y<298;y+=15){ctx.beginPath();ctx.moveTo(490,y);ctx.lineTo(590,y);ctx.stroke();}
+    ctx.strokeStyle='#cdebd8';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(486,rim.y);ctx.lineTo(594,rim.y);ctx.stroke();
+    ctx.fillStyle='#f0ce91';ctx.font='900 13px system-ui';ctx.fillText('КОРЗИНА',504,196);
+    ctx.strokeStyle='#8e704d';ctx.lineWidth=9;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(sling.x,270);ctx.lineTo(sling.x-20,225);ctx.moveTo(sling.x,270);ctx.lineTo(sling.x+20,225);ctx.stroke();
+    const bx=inFlight?sling.x: sling.x+pull.x,by=inFlight?sling.y:sling.y+pull.y;
+    ctx.strokeStyle='#e9ba79';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sling.x-20,225);ctx.lineTo(bx,by);ctx.lineTo(sling.x+20,225);ctx.stroke();
+    if(!inFlight&&shot<3&&!timer){
+      const vx=-pull.x*.16,vy=-pull.y*.16;
+      ctx.fillStyle='#baffd9';
+      for(let t=4;t<61;t+=3){
+        const x=sling.x+vx*t,y=sling.y+vy*t+.21*t*t;
+        if(x>640||y>320)break;
+        ctx.globalAlpha=clamp(1-t/68,.2,.85);
+        ctx.beginPath();ctx.arc(x,y,Math.max(2,4-t*.025),0,Math.PI*2);ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      drawTowel(bx,by,0);
+    }else if(inFlight)drawTowel(towel.x,towel.y,towel.spin);
+    if(timer){
+      ctx.fillStyle='#071f25bb';rounded(209,100,222,56,9);ctx.fill();
+      ctx.fillStyle=lastHit?'#baf7cb':'#ffc7a2';
+      ctx.font='900 24px system-ui';ctx.textAlign='center';
+      ctx.fillText(lastHit?'В КОРЗИНУ!':'МИМО!',320,136);ctx.textAlign='left';
     }
-    button.classList.add('stacked');button.disabled=true;next++;tone();
-    $('utility-status').textContent=next===weights.length?`Все блины на месте · ошибок: ${errors}`:`Следующий: ${weights[next]} кг · ошибок: ${errors}`;
-    if(next===weights.length)timer=setTimeout(finish,420);
-  }));
-  cleanup=()=>{active=false;clearTimeout(timer);};
+    ctx.fillStyle='#d8eada';ctx.font='900 12px system-ui';ctx.fillText('ПОЛОТЕНЦЕ',22,48);
+  };
+  const frame=now=>{
+    if(!active)return;
+    const step=clamp((now-last)/16.67,.2,2);last=now;
+    if(inFlight){
+      const previousY=towel.y;
+      towel.vy+=.42*step;
+      towel.x+=towel.vx*step;towel.y+=towel.vy*step;towel.spin+=.09*step;
+      if(previousY<rim.y-8&&towel.y>=rim.y-8&&towel.vy>0&&towel.x>rim.left+9&&towel.x<rim.right-9)endShot(true);
+      if(inFlight){
+        const dx=towel.x-335,dy=towel.y-235,distance=Math.hypot(dx,dy);
+        if(distance<33&&distance>0){
+          const nx=dx/distance,ny=dy/distance,dot=towel.vx*nx+towel.vy*ny;
+          if(dot<0){towel.x=335+nx*34;towel.y=235+ny*34;towel.vx-=1.8*dot*nx;towel.vy-=1.8*dot*ny;towel.vx*=.84;towel.vy*=.84;tone('hit');}
+        }
+        if(previousY<281&&towel.y>=281&&towel.x>250&&towel.x<395&&towel.vy>0){towel.y=280;towel.vy*=-.65;towel.vx*=.78;tone('hit');}
+        if(towel.y>328||towel.x>653||towel.x<0||now-launchAt>7000)endShot(false);
+      }
+    }
+    draw();
+    raf=requestAnimationFrame(frame);
+  };
+  const onDown=event=>{
+    if(!active||inFlight||shot>=3||timer)return;
+    event.preventDefault();dragging=true;canvas.setPointerCapture(event.pointerId);
+    const p=point(event);setPull(p.x,p.y);draw();
+  };
+  const onMove=event=>{if(!dragging||!active)return;const p=point(event);setPull(p.x,p.y);draw();};
+  const onUp=event=>{if(!dragging)return;dragging=false;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);throwTowel();};
+  const onKey=event=>{
+    if(!active||modalKind!=='utility'||inFlight||shot>=3||timer)return;
+    if(event.code==='Space'){event.preventDefault();if(!event.repeat)throwTowel();return;}
+    if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code))return;
+    event.preventDefault();
+    const delta=event.shiftKey?10:4;
+    if(event.code==='ArrowLeft')pull.x=clamp(pull.x-delta,-135,-25);
+    if(event.code==='ArrowRight')pull.x=clamp(pull.x+delta,-135,-25);
+    if(event.code==='ArrowUp')pull.y=clamp(pull.y-delta,-25,105);
+    if(event.code==='ArrowDown')pull.y=clamp(pull.y+delta,-25,105);
+    draw();
+  };
+  canvas.addEventListener('pointerdown',onDown);
+  canvas.addEventListener('pointermove',onMove);
+  canvas.addEventListener('pointerup',onUp);
+  canvas.addEventListener('pointercancel',()=>{dragging=false;draw();});
+  $('towel-throw').addEventListener('click',throwTowel);
+  document.addEventListener('keydown',onKey);
+  draw();
+  raf=requestAnimationFrame(frame);
+  cleanup=()=>{active=false;cancelAnimationFrame(raf);clearTimeout(timer);document.removeEventListener('keydown',onKey);};
 }
 function startFight(){if(working||battle)return;const result=beginFight(state);if(result.error){toast(result.error,true);return;}battle=result.battle;state=result.state;persist();render();roundLock=false;fightView();tone('hit');}
 function fightLogMarkup(current,message=''){
