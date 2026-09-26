@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { WORLD, TOWEL, planShift, createLayout, createTowelSim, launchFromPull, handFromPull, simulateThrow, seededRandom } from '../dist/towel.mjs';
+import { WORLD, TOWEL, planShift, createLayout, createTowelSim, launchFromPull, handFromPull, simulateThrow, seededRandom, predictFlight } from '../dist/towel.mjs';
 
 const aim = (degrees, power) => {
   const radians = degrees * Math.PI / 180;
@@ -92,6 +92,26 @@ const windy = wind => {
   return x / sim.count;
 };
 assert.ok(windy(180) > windy(0) + 20 && windy(0) > windy(-130) + 20, 'fan wind should visibly carry the towel');
+
+// The aiming hint follows the real towel: its forecast of the centre of mass stays close to the cloth.
+for (const [degrees, power, wind] of [[30, 120, 0], [50, 90, -120], [65, 140, 180]]) {
+  const layout = calmLayout('warmup');
+  layout.basket.x = 5000; layout.wind = wind;
+  const sim = createTowelSim(layout, { random: seededRandom(degrees) });
+  const launch = launchFromPull(...aim(degrees, power)), hand = handFromPull(launch.pullX, launch.pullY);
+  sim.setHand(hand.x, hand.y);
+  for (let s = 0; s < 90; s++) sim.step();
+  const forecast = predictFlight(sim.launchState(launch.x, launch.y), sim.windNow, 0.46, 0.05);
+  sim.release(launch.x, launch.y, 3 + launch.power * 4);
+  let steps = 0, error = 0;
+  for (const point of forecast) {
+    while (steps < Math.round(point.t * 240)) { sim.step(); steps++; }
+    let x = 0, y = 0;
+    for (let p = 0; p < sim.count; p++) { x += sim.pos[p * 3]; y += sim.pos[p * 3 + 1]; }
+    error = Math.max(error, Math.hypot(point.x - x / sim.count, point.y - y / sim.count));
+  }
+  assert.ok(error < 25, `aim hint drifted ${error.toFixed(1)}px from the towel at ${degrees}°/${power}/${wind}`);
+}
 
 // A hard throw into the rim stays physically sane: finite, inside the room, and not overstretched.
 {

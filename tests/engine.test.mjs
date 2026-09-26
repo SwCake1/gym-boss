@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival,
-  train, trainingDifficulty, liftQuality, rest, work, buy, beginFight, fightTurn, fightTimingWindow,
+  train, trainingDifficulty, liftQuality, rest, work, workPayout, buy, beginFight, fightTurn, fightTimingWindow,
   fightMovePreview, fightMaxStamina, fightStartingStamina, migrateBattle,
   RANDOM_EVENTS, advanceRandomEvent,
 } from '../dist/engine.mjs';
@@ -77,9 +77,21 @@ assert.equal(rest(initial).state, initial);
 const tired = freeze({ ...initial, energy: 20 });
 assert.equal(rest(tired).restored, 40);
 assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
-assert.equal(work(tired, 0).earned, 20);
-assert.equal(work(tired, 1).earned, 35);
-assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 65);
+assert.equal(work(tired, 0).earned, 10);
+assert.equal(work(tired, 1).earned, 18);
+assert.equal(work(tired, 3).earned, 34);
+assert.equal(work(tired, 9).earned, 34, 'hits are capped at three throws');
+assert.equal(work(tired, 2.7).hits, 2, 'partial hits do not round up');
+assert.equal(work(tired, NaN).earned, 10);
+assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 10, 'the minimum stays 10 in every gym');
+assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 79);
+assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 26 ₽ (10 ₽ за смену + 2 × 8 ₽).');
+assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 3. Заработал 10 ₽ — только минимальная ставка.');
+for (let gym = 0; gym < 4; gym++) {
+  const pay = workPayout(gym);
+  for (let hits = 0; hits <= 3; hits++) assert.equal(work(freeze({ ...tired, gym }), hits).earned, pay.base + hits * pay.perHit);
+  assert.equal(work(freeze({ ...tired, gym }), 3).earned, pay.max);
+}
 
 const malformed = sanitizeState({
   ...initial, name: '<>\u0000  ', wins: 99, gym: -8, won: false, strength: Infinity, technique: NaN,

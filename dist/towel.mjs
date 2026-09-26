@@ -308,19 +308,30 @@ export function createTowelSim(layout, { random = Math.random } = {}) {
     if (sim.phase !== 'holding') return;
     hand.x = x; hand.y = y;
   };
+  // Whip: the gripped corner leaves fastest and the far end trails, so the towel unfurls in flight.
+  const whips = () => {
+    let reach = 1;
+    for (let p = 0; p < count; p++) reach = Math.max(reach, Math.hypot(pos[p * 3] - pos[0], pos[p * 3 + 1] - pos[1]));
+    return Array.from({ length: count }, (_, p) => 1.18 - 0.36 * Math.hypot(pos[p * 3] - pos[0], pos[p * 3 + 1] - pos[1]) / reach);
+  };
+  // Where the towel's centre of mass starts and how fast it leaves for a given launch.
+  sim.launchState = (vx, vy) => {
+    const whip = whips();
+    let cx = 0, cy = 0, w = 0;
+    for (let p = 0; p < count; p++) { cx += pos[p * 3]; cy += pos[p * 3 + 1]; w += whip[p]; }
+    return { x: cx / count, y: cy / count, vx: vx * w / count, vy: vy * w / count };
+  };
   sim.release = (vx, vy, spin = 5) => {
     if (sim.phase !== 'holding') return false;
     free[0] = 1;
-    let cx = 0, cy = 0, reach = 1;
+    const whip = whips();
+    let cx = 0, cy = 0;
     for (let p = 0; p < count; p++) { cx += pos[p * 3]; cy += pos[p * 3 + 1]; }
     cx /= count; cy /= count;
-    for (let p = 0; p < count; p++) reach = Math.max(reach, Math.hypot(pos[p * 3] - pos[0], pos[p * 3 + 1] - pos[1]));
     const tumble = (random() - 0.5) * 1.2;
     for (let p = 0; p < count; p++) {
       const i = p * 3, rx = pos[i] - cx, ry = pos[i + 1] - cy, rz = pos[i + 2];
-      // Whip: the gripped corner leaves fastest and the far end trails, so the towel unfurls in flight.
-      const whip = 1.18 - 0.36 * Math.hypot(pos[i] - pos[0], pos[i + 1] - pos[1]) / reach;
-      const ux = vx * whip - spin * ry, uy = vy * whip + spin * rx - tumble * rz, uz = tumble * ry - rz * 1.5 + (random() - 0.5) * 4;
+      const ux = vx * whip[p] - spin * ry, uy = vy * whip[p] + spin * rx - tumble * rz, uz = tumble * ry - rz * 1.5 + (random() - 0.5) * 4;
       prev[i] = pos[i] - ux * DT; prev[i + 1] = pos[i + 1] - uy * DT; prev[i + 2] = pos[i + 2] - uz * DT;
     }
     sim.phase = 'flying';
@@ -347,6 +358,23 @@ export function launchFromPull(pullX, pullY) {
   const length = Math.hypot(pullX, pullY), max = WORLD.maxPull;
   const scale = length > max ? max / length : 1;
   return { x: -pullX * scale * WORLD.launchScale, y: -pullY * scale * WORLD.launchScale, pullX: pullX * scale, pullY: pullY * scale, power: Math.min(1, length / max) };
+}
+
+// Point-mass forecast of the towel's centre of mass: gravity, the same air drag
+// the cloth feels on average, and the fan. Used for the aiming hint.
+export const FLIGHT_DRAG = 0.0011;
+export function predictFlight(start, wind = 0, duration = 0.5, every = 0.026) {
+  const points = [];
+  let { x, y, vx, vy } = start, t = 0, next = every;
+  const dt = DT;
+  while (t < duration) {
+    const rx = vx - wind, speed = Math.hypot(rx, vy);
+    vx = vx * DAMPING - FLIGHT_DRAG * speed * rx * dt;
+    vy = vy * DAMPING + (GRAVITY - FLIGHT_DRAG * speed * vy) * dt;
+    x += vx * dt; y += vy * dt; t += dt;
+    if (t >= next) { points.push({ x, y, t }); next += every; }
+  }
+  return points;
 }
 
 export function simulateThrow(layout, pullX, pullY, { random = seededRandom(7), holdTime = 0 } = {}) {
@@ -385,7 +413,7 @@ export function outcomeText(result) {
   return { title, line };
 }
 
-export function mountTowelGame(canvas, { gym = 0, throws = 3, sound = () => {}, onThrow = () => {}, onShot = () => {}, onDone = () => {}, reducedMotion = false } = {}) {
+export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor = () => 0, sound = () => {}, onThrow = () => {}, onShot = () => {}, onDone = () => {}, reducedMotion = false } = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const W = WORLD.width, H = WORLD.height, anchor = WORLD.anchor, level = clamp(Math.floor(gym) || 0, 0, 3);
@@ -831,7 +859,7 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, sound = () => {}, 
   }
 
   function drawAim(g, t) {
-    const hand = handFromPull(pull.x, pull.y), launch = launchFromPull(pull.x, pull.y);
+    const launch = launchFromPull(pull.x, pull.y);
     if (launch.power < 0.05) {
       if (drag) return;
       const pulse = (Math.sin(t * 4) + 1) / 2;
@@ -847,9 +875,10 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, sound = () => {}, 
       return;
     }
     g.save();
+    // The hint follows the towel's centre of mass with drag and the current wind, not a bare parabola.
     const limit = HINT_TIME[level];
-    for (let s = 0.04; s < limit; s += 0.026) {
-      const x = hand.x + launch.x * s, y = hand.y + launch.y * s + 0.5 * 1100 * s * s;
+    for (const { x, y, t: s } of predictFlight(sim.launchState(launch.x, launch.y), sim.windNow, limit)) {
+      if (s < 0.05) continue;
       g.globalAlpha = 0.95 * (1 - s / limit);
       g.fillStyle = '#f4efe3';
       g.beginPath(); g.arc(x, y, 4.2 - s * 5, 0, Math.PI * 2); g.fill();
@@ -994,7 +1023,7 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, sound = () => {}, 
     banner = { ...text, at: now / 1000, until: now / 1000 + 1.55, color: result.hit ? (result.clean ? '#e4b56d' : '#baf7cb') : result.kind === 'rim' ? '#f8db99' : '#ffb59a', big: result.clean };
     if (result.hit) {
       confetti(bx, by - 6);
-      floatText(bx, by - 40, '+5 ₽', '#e4b56d');
+      floatText(bx, by - 40, `+${perHit} ₽`, '#e4b56d');
       shake = reducedMotion ? 0 : 7;
       sound('perfect');
     } else sound('error');
@@ -1080,7 +1109,7 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, sound = () => {}, 
       if (index + 1 < throws) { fadeTarget = 1; phase = 'fade'; }
       else {
         phase = 'done';
-        banner = { title: `${hits} ИЗ ${throws}`, line: hits === throws ? 'Идеальная смена. Завхоз плачет от счастья.' : hits ? 'Смена закрыта. Касса открыта.' : 'Смена закрыта. Базовая оплата всё равно твоя.', at: t, until: t + 1.6, color: hits ? '#e4b56d' : '#ffb59a', big: true };
+        banner = { title: `${hits} ИЗ ${throws}`, line: `${hits === throws ? 'Идеальная смена!' : hits ? 'Смена закрыта.' : 'Ни одного попадания.'} К выплате ${payFor(hits)} ₽`, at: t, until: t + 1.6, color: hits ? '#e4b56d' : '#ffb59a', big: true };
         pendingNext = now + 1500;
         if (hits === throws) confetti(W / 2, 220);
       }

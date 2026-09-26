@@ -195,12 +195,21 @@ export function rest(state) {
   return { state: commit({ ...state, energy: state.energy + restored }, message), message, restored };
 }
 
-export function work(state, quality = 1) {
+// Towel toss pay: a small fixed minimum, the rest only for towels in the basket.
+export const WORK_THROWS = 3;
+export function workPayout(gym = 0) {
+  const level = finite(gym, 0, 0, GYMS.length - 1);
+  const base = 10, perHit = 8 + level * 5;
+  return { base, perHit, max: base + perHit * WORK_THROWS };
+}
+
+export function work(state, hits = 0) {
   if (state.energy < 12) return failure(state, 'Для подработки нужно 12 энергии. Сначала отдохни.');
-  const accuracy = finite(quality, 1, 0, 1, false);
-  const earned = 20 + state.gym * 15 + Math.round(accuracy * 15);
-  const message = `Полотенец в корзине: ${Math.round(accuracy * 3)} из 3. Заработал ${earned} ₽.`;
-  return { state: commit({ ...state, money: state.money + earned, energy: state.energy - 12, totalWork: state.totalWork + 1 }, message), message, earned };
+  const scored = finite(hits, 0, 0, WORK_THROWS);
+  const { base, perHit } = workPayout(state.gym);
+  const earned = base + scored * perHit;
+  const message = `Полотенец в корзине: ${scored} из ${WORK_THROWS}. Заработал ${earned} ₽${scored ? ` (${base} ₽ за смену + ${scored} × ${perHit} ₽)` : ' — только минимальная ставка'}.`;
+  return { state: commit({ ...state, money: state.money + earned, energy: state.energy - 12, totalWork: state.totalWork + 1 }, message), message, earned, hits: scored };
 }
 
 export function buy(state, itemId) {
