@@ -202,7 +202,7 @@ function render(){
 
 function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.indexOf(r)>state.wins)return;const dialog=document.createElement('dialog');dialog.className='portrait-dialog';dialog.setAttribute('aria-label',`Фото ${r.name}`);dialog.innerHTML=`<div class="portrait-dialog-body"><button type="button" class="close-button portrait-close" aria-label="Закрыть фото">×</button><div class="portrait-art" style="${rivalSpriteStyle(r.portrait)}" role="img" aria-label="${esc(r.name)}"></div><h2>${esc(r.name)}</h2><p>${esc(r.title)}</p></div>`;document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.querySelector('.portrait-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});dialog.showModal();}
 function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
-function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;$('dialog-content').innerHTML=html;if(!$('game-dialog').open)$('game-dialog').showModal();}
+function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;const dialog=$('game-dialog');dialog.classList.remove('keyboard-focus');$('dialog-content').innerHTML=html;if(!dialog.open)dialog.showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
 function showRandomEvent({event,change}){
   const index=Number(event.id.slice(1))-1,cell=index%15;
@@ -381,6 +381,7 @@ function startRestGame(){
   working=true;
   modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ')}<h2 id="dialog-title">ВЫДОХНИ.</h2><p class="training-reward">ДО +40 ЭНЕРГИИ</p><p class="rest-instruction">Потыкай по вещам — получишь 40 энергии.</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажми на поле с вещами шесть раз, чтобы восстановить энергию"></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="visually-hidden" id="utility-status" role="status">0 из 6 нажатий</div></div>`,'utility');
   const field=$('rest-playfield');
+  field.focus({preventScroll:true});
   const itemSize=56;
   const props=['shaker','wraps','gloves','band','towel','shoe'];
   const items=props.map(name=>{
@@ -675,6 +676,8 @@ function handleClick(ev){
   }
 }
 document.addEventListener('click',handleClick);
+document.addEventListener('keydown',ev=>{if(ev.key==='Tab')ev.target.closest?.('dialog[open]')?.classList.add('keyboard-focus');},true);
+document.addEventListener('pointerdown',ev=>{ev.target.closest?.('dialog')?.classList.remove('keyboard-focus');},true);
 let fightEscapePending=false;
 document.addEventListener('keydown',ev=>{
   if(ev.key!=='Escape'||!$('game-dialog').open||!['fight','surrender-confirm'].includes(modalKind))return;
