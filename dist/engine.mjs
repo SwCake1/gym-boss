@@ -214,7 +214,7 @@ export function rest(state) {
 }
 
 // Towel toss pay: a guaranteed shift rate plus a hit bonus that grows by gym.
-export const WORK_THROWS = 3;
+export const WORK_THROWS = 5;
 export function workPayout(gym = 0) {
   const level = finite(gym, 0, 0, GYMS.length - 1);
   const base = 20, perHit = 15 + level * 5;
@@ -258,8 +258,12 @@ export function buy(state, itemId) {
   return { state: commit(next, message), message, item };
 }
 
-// Endurance is the only character stat used to size the stamina reservoir.
-// The pool can grow beyond 100; the cost of each attack does not scale with it.
+// Endurance lets a fighter absorb more counters and keep attacking longer.
+export function fightMaxHp(state) {
+  const endurance = finite(state?.endurance, 8, 1, 500);
+  return 100 + Math.max(0, endurance - 8) * 3;
+}
+
 export function fightMaxStamina(state) {
   const endurance = finite(state?.endurance, 8, 1, 500);
   return 70 + endurance * 2 + (PREP[state?.fightPrep]?.stamina ?? 0);
@@ -292,7 +296,11 @@ export function fightTimingWindow(state, battle) {
 }
 
 function attackDamage(strength) {
-  return Math.round(clamp(9 + strength * 0.34, 1, 80));
+  return Math.round(clamp(9 + Math.min(strength, 60) * 0.34 + Math.max(0, strength - 60) * 0.12, 1, 80));
+}
+
+function counterDamage(rival) {
+  return Math.round(8 + rival.power * 0.13);
 }
 
 // Previous saves contain the old three-move fight shape. Preserve their HP and
@@ -302,14 +310,17 @@ export function migrateBattle(state, input) {
   const rival = RIVALS.find(entry => entry.id === input.rivalId);
   if (!rival || nextRival(state)?.id !== rival.id) return null;
   if (![input.playerHp, input.enemyHp, input.playerStamina, input.round].every(Number.isFinite)) return null;
-  if (input.playerHp <= 0 || input.playerHp > 100 || input.enemyHp <= 0 || !Number.isSafeInteger(input.round) || input.round < 0 || !Array.isArray(input.history)) return null;
+  const oldPlayerMaxHp = finite(input.playerMaxHp, 100, 100, 1600);
+  const playerMaxHp = Number.isFinite(input.playerMaxHp) ? oldPlayerMaxHp : fightMaxHp(state);
+  if (input.playerHp <= 0 || input.playerHp > oldPlayerMaxHp || input.enemyHp <= 0 || !Number.isSafeInteger(input.round) || input.round < 0 || !Array.isArray(input.history)) return null;
   const maxStamina = finite(input.maxStamina, fightMaxStamina(state), 1, 1100);
   const newFormat = Number.isFinite(input.enemyMaxHp) && input.enemyMaxHp >= 100;
   const enemyMaxHp = newFormat ? finite(input.enemyMaxHp, 100, 100, 300) : 100;
   if (input.enemyHp > enemyMaxHp || input.playerStamina <= 0 || input.playerStamina > Math.max(100, maxStamina)) return null;
   return {
     rivalId: rival.id,
-    playerHp: Math.floor(input.playerHp),
+    playerHp: Math.min(playerMaxHp, Math.floor(input.playerHp) + playerMaxHp - oldPlayerMaxHp),
+    playerMaxHp,
     enemyHp: Math.floor(input.enemyHp),
     enemyMaxHp,
     maxStamina,
@@ -334,6 +345,7 @@ export function fightMovePreview(state, battle, move) {
     staminaDelta: -Math.min(8, current.playerStamina),
     minDamage: 0,
     maxDamage: attackDamage(current.attackStrength),
+    counterDamage: counterDamage(RIVALS.find(entry => entry.id === current.rivalId)),
     timingWindow: fightTimingWindow(state, current),
   };
 }
@@ -347,8 +359,9 @@ export function beginFight(state) {
   if (state.energy < required) return failure(state, boost.energyCost ? `С «${boost.name}» нужно минимум ${required} энергии. Отдохни перед боем.` : 'Для вызова нужно 20 энергии. Отдохни перед боем.');
   const convertedEnergy = energyCommitted(state);
   const enemyMaxHp = 100 + RIVALS.indexOf(rival) * 14;
+  const playerMaxHp = fightMaxHp(state);
   const battle = {
-    rivalId: rival.id, playerHp: 100, enemyHp: enemyMaxHp, enemyMaxHp,
+    rivalId: rival.id, playerHp: playerMaxHp, playerMaxHp, enemyHp: enemyMaxHp, enemyMaxHp,
     maxStamina: fightMaxStamina(state), playerStamina: fightStartingStamina(state),
     round: 0, history: [], finished: false, result: null,
     attackStrength: state.strength + boost.strength, timingBonus: PREP[state.fightPrep]?.timing ?? 0,
@@ -385,10 +398,7 @@ export function fightTurn(state, battle, move, timing = 0.5) {
   const damageMultiplier = { perfect: 1, good: 2 / 3, weak: 1 / 3 }[timingGrade] ?? 0;
   const playerDamage = Math.round(attackDamage(current.attackStrength) * damageMultiplier);
   const enemyHp = Math.max(0, current.enemyHp - playerDamage);
-  const enemyBase = 8 + rival.power * 0.14;
-  const enemyDamage = enemyHp <= 0 ? 0 : Math.round(enemyBase * (
-    timingGrade === 'perfect' ? 0.28 : timingGrade === 'good' || timingGrade === 'weak' ? 0.50 : 0.70
-  ));
+  const enemyDamage = enemyHp <= 0 ? 0 : counterDamage(rival);
   const playerHp = Math.max(0, current.playerHp - enemyDamage);
   const staminaCost = timingGrade === 'perfect' ? 8 : timingGrade === 'miss' ? 13 : 10;
   const playerStamina = Math.max(0, current.playerStamina - staminaCost);

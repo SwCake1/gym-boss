@@ -3,7 +3,7 @@ import {
   GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival,
   train, trainingDifficulty, liftQuality, rest, work, workPayout, buy, gearCost, MAX_GEAR_LEVEL,
   beginFight, fightTurn, forfeitFight, defeatPenalty, fightTimingWindow,
-  fightMovePreview, fightMaxStamina, fightStartingStamina, migrateBattle,
+  fightMovePreview, fightMaxHp, fightMaxStamina, fightStartingStamina, migrateBattle,
   RANDOM_EVENTS, advanceRandomEvent,
 } from '../dist/engine.mjs';
 
@@ -26,7 +26,7 @@ function fight(input, timings = [0.5]) {
     state = result.state;
     battle = result.battle;
     assert.ok(battle.round < 1000, 'A fight must eventually end through health or stamina');
-    assert.ok(battle.playerHp >= 0 && battle.enemyHp >= 0);
+    assert.ok(battle.playerHp >= 0 && battle.playerHp <= battle.playerMaxHp && battle.enemyHp >= 0);
     assert.ok(battle.playerStamina >= 0 && battle.playerStamina <= battle.maxStamina);
   }
   return { state, battle };
@@ -101,20 +101,21 @@ assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
 assert.equal(work(tired, 0).earned, 20);
 assert.equal(work(tired, 1).earned, 35);
 assert.equal(work(tired, 3).earned, 65);
-assert.equal(work(tired, 9).earned, 65, 'hits are capped at three throws');
+assert.equal(work(tired, 5).earned, 95);
+assert.equal(work(tired, 9).earned, 95, 'hits are capped at five throws');
 assert.equal(work(tired, 2.7).hits, 2, 'partial hits do not round up');
 assert.equal(work(tired, NaN).earned, 20);
 assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 20, 'the minimum stays 20 in every gym');
 assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 110);
-assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 50 ₽ (20 ₽ за смену + 2 × 15 ₽).');
-assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 3. Заработал 20 ₽ — только минимальная ставка.');
-assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [65, 80, 95, 110]);
+assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 5. Заработал 50 ₽ (20 ₽ за смену + 2 × 15 ₽).');
+assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 5. Заработал 20 ₽ — только минимальная ставка.');
+assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [95, 120, 145, 170]);
 assert.ok(initial.money + work(tired, 3).earned * 2 >= SHOP.find(item => item.id === 'wraps').cost,
   'Two perfect shifts plus starting cash buy the first permanent upgrade');
 for (let gym = 0; gym < 4; gym++) {
   const pay = workPayout(gym);
-  for (let hits = 0; hits <= 3; hits++) assert.equal(work(freeze({ ...tired, gym }), hits).earned, pay.base + hits * pay.perHit);
-  assert.equal(work(freeze({ ...tired, gym }), 3).earned, pay.max);
+  for (let hits = 0; hits <= 5; hits++) assert.equal(work(freeze({ ...tired, gym }), hits).earned, pay.base + hits * pay.perHit);
+  assert.equal(work(freeze({ ...tired, gym }), 5).earned, pay.max);
 }
 
 const malformed = sanitizeState({
@@ -211,7 +212,10 @@ for (let level = 0; level < MAX_GEAR_LEVEL; level++) {
 assert.ok(buy(freeze(geared), 'wraps').error.includes('максимума'));
 assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(geared))), geared);
 
-// Endurance sizes the reservoir; it cannot change damage, timing, or recovery.
+// Endurance extends both ways a fighter can survive a long exchange.
+assert.equal(fightMaxHp(initial), 100);
+assert.equal(fightMaxHp({ ...initial, endurance: 20 }), 136);
+assert.equal(fightMaxHp({ ...initial, endurance: 80 }), 316);
 assert.equal(fightMaxStamina(initial), 86);
 assert.equal(fightMaxStamina({ ...initial, endurance: 80 }), 230);
 assert.ok(fightMaxStamina({ ...initial, endurance: 20 }) > 100);
@@ -219,6 +223,7 @@ assert.equal(fightStartingStamina(initial), 86);
 assert.ok(fightStartingStamina({ ...initial, energy: 20 }) < fightStartingStamina(initial));
 for (const energy of [20, 40, 60, 80, 100]) {
   const started = beginFight(freeze({ ...initial, energy }));
+  assert.equal(started.battle.playerMaxHp, 100);
   assert.equal(started.battle.maxStamina, 86);
   assert.equal(started.battle.playerStamina, fightStartingStamina({ ...initial, energy }));
   assert.equal(started.state.energy, Math.max(0, energy - 80));
@@ -254,6 +259,7 @@ const basic = beginFight(initial);
 assert.equal(basic.battle.enemyMaxHp, 100);
 assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').staminaCost, 8);
 assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').minDamage, 0);
+assert.equal(fightMovePreview(basic.state, basic.battle, 'attack').counterDamage, 9);
 assert.equal(fightMovePreview(basic.state, basic.battle, 'push'), null);
 assert.ok(fightTurn(basic.state, basic.battle, 'push').error);
 const perfect = fightTurn(freeze(basic.state), freeze(basic.battle), 'attack', 0.5);
@@ -274,7 +280,9 @@ for (const offset of [-1, 1]) {
   assert.equal(fightTurn(basic.state, basic.battle, 'attack', 0.5 + offset * timingWindow * 0.99).turn.timingGrade, 'weak');
   assert.equal(fightTurn(basic.state, basic.battle, 'attack', 0.5 + offset * (timingWindow + 0.001)).turn.timingGrade, 'miss');
 }
-assert.ok(perfect.turn.enemyDamage < good.turn.enemyDamage && good.turn.enemyDamage < miss.turn.enemyDamage);
+assert.equal(perfect.turn.enemyDamage, good.turn.enemyDamage, 'A clean hit does not weaken the counter');
+assert.equal(perfect.turn.enemyDamage, miss.turn.enemyDamage, 'A miss receives the same counter');
+assert.equal(perfect.turn.enemyDamage, fightMovePreview(basic.state, basic.battle, 'attack').counterDamage);
 assert.deepEqual(perfect.turn, perfect.battle.history.at(-1));
 assert.equal(perfect.turn.staminaCost, 8);
 assert.equal(perfect.battle.playerStamina, 78);
@@ -287,9 +295,10 @@ assert.equal(exhausted.battle.result, 'loss');
 const lastBlow = fightTurn(basic.state, { ...basic.battle, enemyHp: perfect.turn.playerDamage, playerStamina: 8 }, 'attack', 0.5);
 assert.equal(lastBlow.battle.playerStamina, 0);
 assert.equal(lastBlow.battle.result, 'win', 'A finishing blow wins even when stamina reaches zero');
+assert.equal(lastBlow.turn.enemyDamage, 0, 'A defeated rival cannot counter');
 assert.equal(migrateBattle(basic.state, { ...basic.battle, playerStamina: 0 }), null);
 
-// Strength alone changes attack damage. Technique only changes timing width.
+// Strength changes attack damage with diminishing returns. Technique changes timing width.
 const stronger = beginFight({ ...initial, strength: 80 }).battle;
 const technical = beginFight({ ...initial, technique: 80 }).battle;
 const durable = beginFight({ ...initial, endurance: 80 }).battle;
@@ -300,6 +309,12 @@ assert.ok(fightTimingWindow({ ...initial, technique: 80 }, basic.battle) > fight
 assert.ok(fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[5].id }) < fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[2].id }));
 assert.ok(fightTimingWindow(initial, basic.battle) < 0.1, 'Initial timing zone is substantially narrower than the old one');
 assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').staminaDelta, -8, 'Endurance does not change per-turn stamina economics');
+assert.equal(durable.playerMaxHp, 316);
+const finalState = { ...initial, wins: 11, gym: 3, strength: 80, endurance: 8 };
+assert.equal(fight({ ...finalState, strength: 120 }).battle.result, 'loss', 'Strength alone cannot bypass the final rival with perfect timing');
+assert.equal(fight({ ...finalState, endurance: 20 }).battle.result, 'win', 'Training endurance opens a viable path');
+assert.ok(fightMovePreview({ ...initial, strength: 120 }, beginFight({ ...initial, strength: 120 }).battle, 'attack').maxDamage < 50,
+  'High strength gains taper off');
 
 // A long fight remains active after ten attacks and can be restored from a save.
 const longState = { ...initial, wins: 11, gym: 3, strength: 1, endurance: 80 };
@@ -324,7 +339,11 @@ const migrated = migrateBattle(initial, oldSavedBattle);
 assert.equal(migrated.round, 3);
 assert.equal(migrated.enemyHp, 62);
 assert.equal(migrated.enemyMaxHp, 100);
+assert.equal(migrated.playerMaxHp, 100);
 assert.equal(migrated.maxStamina, 86);
+const fortifiedMigration = migrateBattle({ ...initial, endurance: 20 }, oldSavedBattle);
+assert.equal(fortifiedMigration.playerMaxHp, 136);
+assert.equal(fortifiedMigration.playerHp, 113, 'An active old fight retains damage already taken when endurance adds health');
 assert.equal(fightTurn(initial, oldSavedBattle, 'attack', 0.5).battle.round, 4);
 assert.equal(migrateBattle(initial, { ...oldSavedBattle, rivalId: 'nobody' }), null);
 

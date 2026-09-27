@@ -13,12 +13,13 @@ const calmLayout = kind => {
 };
 const finite = sim => sim.pos.every(Number.isFinite);
 
-// A shift is a warm-up plus two different obstacles; wind grows with the gym.
+// Every shift includes the two new layouts; wind grows with the gym.
 for (let seed = 1; seed <= 40; seed++) {
   const shift = planShift(seed % 4, seededRandom(seed));
-  assert.equal(shift.length, 3);
+  assert.equal(shift.length, 5);
   assert.equal(shift[0].kind, 'warmup');
   assert.notEqual(shift[1].kind, shift[2].kind);
+  assert.deepEqual(shift.slice(3).map(layout => layout.kind), ['distance', 'gauntlet']);
   assert.ok(shift.every(layout => layout.basket && layout.name));
   assert.ok(Math.abs(shift[0].wind) <= 60 * 0.45 + 1 || seed % 4 > 0);
 }
@@ -45,7 +46,7 @@ assert.equal(launchFromPull(0, 0).power, 0);
 }
 
 // Every layout can be solved with a sensible throw, and a limp toss lands on the floor.
-const solutions = { warmup: aim(35, 90), bench: aim(45, 100), bag: aim(60, 110), lockers: aim(55, 120) };
+const solutions = { warmup: aim(35, 90), bench: aim(45, 100), bag: aim(60, 110), lockers: aim(55, 120), distance: aim(35, 140), gauntlet: aim(70, 130) };
 for (const [kind, [x, y]] of Object.entries(solutions)) {
   const result = simulateThrow(calmLayout(kind), x, y);
   assert.equal(result.kind, 'in', `${kind} should have a reachable basket: ${JSON.stringify(result)}`);

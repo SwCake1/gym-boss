@@ -19,20 +19,20 @@ export function seededRandom(seed = 1) {
   };
 }
 
-const LAYOUT_NAMES = { warmup: 'Разминка', bench: 'Через скамью', bag: 'Груша на пути', lockers: 'На шкафчик' };
+const LAYOUT_NAMES = { warmup: 'Разминка', bench: 'Через скамью', bag: 'Груша на пути', lockers: 'На шкафчик', distance: 'Дальний угол', gauntlet: 'Скамья и груша' };
 const WIND_LIMITS = [60, 105, 145, 185];
 
-// One shift is three throws: an easy warm-up and two distinct obstacles.
+// One shift is five throws: a warm-up, two classic obstacles, and two new layouts.
 export function planShift(gym = 0, random = Math.random) {
   const pool = ['bench', 'bag', 'lockers'];
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  return ['warmup', pool[0], pool[1]].map((kind, index) => createLayout(kind, gym, random, index));
+  return ['warmup', pool[0], pool[1], 'distance', 'gauntlet'].map((kind, index) => createLayout(kind, gym, random, index));
 }
 
 export function createLayout(kind, gym = 0, random = Math.random, index = 1) {
   const level = Math.max(0, Math.min(3, Math.floor(gym) || 0));
   const floor = WORLD.floor, jitter = (random() - 0.5) * 50;
-  const limit = WIND_LIMITS[level] * (index === 0 ? 0.45 : 1);
+  const limit = WIND_LIMITS[level] * (index === 0 ? 0.45 : kind === 'gauntlet' ? 0.65 : 1);
   // Headwind is capped lower: it eats range the player cannot win back with power.
   const wind = Math.round((random() < 0.5 ? -0.7 : 1) * limit * (0.35 + random() * 0.65));
   const layout = { kind, name: LAYOUT_NAMES[kind], wind, boxes: [], bag: null };
@@ -49,6 +49,12 @@ export function createLayout(kind, gym = 0, random = Math.random, index = 1) {
   if (kind === 'bag') {
     layout.bag = { pivotX: 470 + jitter * 0.4, pivotY: -30, rope: 250, length: 118, radius: 30, angle: (random() < 0.5 ? -1 : 1) * (0.2 + random() * 0.14), velocity: 0 };
     layout.basket = basket(672 + jitter, floor);
+  }
+  if (kind === 'distance') layout.basket = basket(790 + jitter * 0.35, floor);
+  if (kind === 'gauntlet') {
+    layout.boxes.push({ type: 'bench', x0: 400 + jitter * 0.2, x1: 490 + jitter * 0.2, y0: floor - 48, y1: floor, z0: -34, z1: 34 });
+    layout.bag = { pivotX: 540 + jitter * 0.2, pivotY: -30, rope: 235, length: 118, radius: 30, angle: (random() < 0.5 ? -1 : 1) * (0.16 + random() * 0.1), velocity: 0 };
+    layout.basket = basket(710 + jitter * 0.3, floor);
   }
   return layout;
 }
@@ -413,7 +419,7 @@ export function outcomeText(result) {
   return { title, line };
 }
 
-export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor = () => 0, sound = () => {}, onThrow = () => {}, onShot = () => {}, onDone = () => {}, reducedMotion = false } = {}) {
+export function mountTowelGame(canvas, { gym = 0, throws = 5, perHit = 0, payFor = () => 0, sound = () => {}, onThrow = () => {}, onShot = () => {}, onDone = () => {}, reducedMotion = false } = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const W = WORLD.width, H = WORLD.height, anchor = WORLD.anchor, level = clamp(Math.floor(gym) || 0, 0, 3);
@@ -425,6 +431,14 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   let particles = [], shake = 0, slowUntil = 0, slowUsed = false, lastSound = 0, flicker = 0, now = performance.now();
   const arm = { x: anchor.x, y: anchor.y, follow: 0 };
   const streaks = Array.from({ length: 34 }, () => ({ x: Math.random() * W, y: 40 + Math.random() * 380, z: (Math.random() - 0.5) * 120, length: 30 + Math.random() * 70, speed: 0.6 + Math.random() * 0.8 }));
+  const art = {};
+  for (const name of ['background', 'upper-arm', 'forearm', 'basket', 'bench', 'bag', 'lockers', 'cloth', 'fan', 'clock']) {
+    const image = new Image();
+    image.onload = () => { if (active && name !== 'cloth') rebuild(); };
+    image.src = `./assets/towel-game/${name}.webp`;
+    art[name] = image;
+  }
+  const ready = name => art[name]?.complete && art[name].naturalWidth > 0;
 
   const layer = draw => {
     const node = document.createElement('canvas');
@@ -459,6 +473,10 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   // --- Static scene -------------------------------------------------------
   function roundRect(g, x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
   function drawRoom(g) {
+    if (ready('background')) {
+      g.drawImage(art.background, 0, 0, W, H);
+      return;
+    }
     const floorBack = project(0, WORLD.floor, -WORLD.depth)[1];
     const wall = g.createLinearGradient(0, 0, 0, floorBack);
     wall.addColorStop(0, '#0a1316'); wall.addColorStop(0.55, '#10242a'); wall.addColorStop(1, '#16323a');
@@ -551,8 +569,14 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
     for (const box of layout.boxes) {
       const floorShadow = project(0, WORLD.floor, box.z1)[1];
       g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse((box.x0 + box.x1) / 2, floorShadow - 8, (box.x1 - box.x0) / 2 + 18, 18, 0, 0, Math.PI * 2); g.fill();
-      if (box.type === 'bench') drawBench(g, box);
-      if (box.type === 'lockers') drawLockers(g, box);
+      if (box.type === 'bench') {
+        if (ready('bench')) g.drawImage(art.bench, box.x0 - 10, box.y0 + 4, box.x1 - box.x0 + 20, WORLD.floor - box.y0 + 32);
+        else drawBench(g, box);
+      }
+      if (box.type === 'lockers') {
+        if (ready('lockers')) g.drawImage(art.lockers, box.x0 - 4, box.y0 - 4, box.x1 - box.x0 + 8, WORLD.floor - box.y0 + 34);
+        else drawLockers(g, box);
+      }
     }
   }
 
@@ -596,6 +620,11 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   function drawBasketBack(g, b) {
     const [cx, rimY] = project(b.x, b.rim, b.z), bottomY = project(b.x, b.bottom, b.z)[1];
     const ry = b.radius * PROJECT_Z;
+    if (ready('basket')) {
+      g.fillStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.ellipse(cx + 8, bottomY + 4, b.radius * 1.1, ry, 0, 0, Math.PI * 2); g.fill();
+      g.drawImage(art.basket, cx - b.radius - 6, rimY - ry - 7, b.radius * 2 + 12, bottomY - rimY + ry + 12);
+      return;
+    }
     g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(cx + 8, bottomY + 2, b.radius * 1.12, ry * 1.25, 0, 0, Math.PI * 2); g.fill();
     // Inside of the basket seen through the opening.
     const inner = g.createLinearGradient(0, rimY - ry, 0, rimY + ry);
@@ -609,6 +638,13 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   function drawBasketFront(g, b) {
     const [cx, rimY] = project(b.x, b.rim, b.z), bottomY = project(b.x, b.bottom, b.z)[1];
     const ry = b.radius * PROJECT_Z, rb = basketSize(b, b.bottom);
+    if (ready('basket')) {
+      g.save();
+      g.beginPath(); g.rect(cx - b.radius - 7, rimY + ry * .45, b.radius * 2 + 14, bottomY - rimY + ry + 8); g.clip();
+      g.drawImage(art.basket, cx - b.radius - 6, rimY - ry - 7, b.radius * 2 + 12, bottomY - rimY + ry + 12);
+      g.restore();
+      return;
+    }
     const body = new Path2D();
     body.ellipse(cx, rimY, b.radius, ry, 0, 0, Math.PI);
     body.lineTo(cx - rb, bottomY);
@@ -652,6 +688,13 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   function drawFan(g, t) {
     if (Math.abs(layout.wind) < 8) return;
     const left = layout.wind > 0, x = left ? 62 : W - 62, y = 190;
+    if (ready('fan')) {
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 16; g.shadowOffsetY = 5;
+      g.drawImage(art.fan, x - 43, y - 43, 86, 86);
+      g.restore();
+      return;
+    }
     g.save();
     g.strokeStyle = '#223a40'; g.lineWidth = 6; g.beginPath(); g.moveTo(left ? 0 : W, y - 4); g.lineTo(x, y); g.stroke();
     g.translate(x, y);
@@ -675,6 +718,11 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
 
   function drawClock(g) {
     const date = new Date(), x = 800, y = 78;
+    if (ready('clock')) {
+      g.save(); g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
+      g.drawImage(art.clock, x - 31, y - 31, 62, 62); g.restore();
+      return;
+    }
     g.save();
     g.fillStyle = '#0b1518'; g.beginPath(); g.arc(x, y, 30, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#e8e6da'; g.beginPath(); g.arc(x, y, 26, 0, Math.PI * 2); g.fill();
@@ -696,6 +744,11 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
     const floorY = project(0, WORLD.floor, 0)[1];
     g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse((e.ax + e.bx) / 2, floorY, 42, 8, 0, 0, Math.PI * 2); g.fill();
     g.translate(e.ax, e.ay); g.rotate(-bag.angle);
+    if (ready('bag')) {
+      g.drawImage(art.bag, -bag.radius - 5, -21, bag.radius * 2 + 10, bag.length + 24);
+      g.restore();
+      return;
+    }
     const leather = g.createLinearGradient(-bag.radius, 0, bag.radius, 0);
     leather.addColorStop(0, '#3c0d0b'); leather.addColorStop(0.35, '#b33a2a'); leather.addColorStop(0.55, '#8e2a1f'); leather.addColorStop(1, '#2b0807');
     g.fillStyle = leather; roundRect(g, -bag.radius, 0, bag.radius * 2, bag.length, [12, 12, 24, 24]); g.fill();
@@ -742,7 +795,7 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
       const d2 = Math.hypot(cx - b.x, cz - b.z);
       const inBasket = d2 < b.radius && cy > b.rim + 4 ? 0.55 + 0.45 * clamp(1 - (cy - b.rim) / 60, 0, 1) : 1;
       const k = (0.52 + 0.5 * light) * (facing < 0 ? 0.9 : 1) * inBasket;
-      const face = { a, c, d, depth: cz - cy * PROJECT_Z, color: shade(base, k), border: borders[cell] };
+      const face = { a, c, d, depth: cz - cy * PROJECT_Z, color: shade(base, k), lightness: k, border: borders[cell] };
       (cy < b.rim - 2 || (d2 > b.radius && cz > b.z) ? front : back).push(face);
     }
     front.sort((p, q) => p.depth - q.depth); back.sort((p, q) => p.depth - q.depth);
@@ -753,11 +806,27 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
     g.lineJoin = 'round'; g.lineWidth = 0.7;
     for (const f of faces) {
       g.fillStyle = f.color; g.strokeStyle = f.color;
+      const x0 = pos[f.a], y0 = pos[f.a + 1] + pos[f.a + 2] * PROJECT_Z;
+      const x1 = pos[f.c], y1 = pos[f.c + 1] + pos[f.c + 2] * PROJECT_Z;
+      const x2 = pos[f.d], y2 = pos[f.d + 1] + pos[f.d + 2] * PROJECT_Z;
       g.beginPath();
-      g.moveTo(pos[f.a], pos[f.a + 1] + pos[f.a + 2] * PROJECT_Z);
-      g.lineTo(pos[f.c], pos[f.c + 1] + pos[f.c + 2] * PROJECT_Z);
-      g.lineTo(pos[f.d], pos[f.d + 1] + pos[f.d + 2] * PROJECT_Z);
-      g.closePath(); g.fill(); g.stroke();
+      g.moveTo(x0, y0); g.lineTo(x1, y1); g.lineTo(x2, y2); g.closePath();
+      if (ready('cloth')) {
+        const texture = art.cloth;
+        const uv = index => [index / 3 % TOWEL.cols * texture.width / (TOWEL.cols - 1), Math.floor(index / 3 / TOWEL.cols) * texture.height / (TOWEL.rows - 1)];
+        const [u0, v0] = uv(f.a), [u1, v1] = uv(f.c), [u2, v2] = uv(f.d);
+        const du1 = u1 - u0, dv1 = v1 - v0, du2 = u2 - u0, dv2 = v2 - v0, determinant = du1 * dv2 - du2 * dv1;
+        if (Math.abs(determinant) > .001) {
+          const a = ((x1 - x0) * dv2 - (x2 - x0) * dv1) / determinant;
+          const b = ((y1 - y0) * dv2 - (y2 - y0) * dv1) / determinant;
+          const c = ((x2 - x0) * du1 - (x1 - x0) * du2) / determinant;
+          const d = ((y2 - y0) * du1 - (y1 - y0) * du2) / determinant;
+          g.save(); g.clip(); g.transform(a, b, c, d, x0 - a * u0 - c * v0, y0 - b * u0 - d * v0); g.drawImage(texture, 0, 0); g.restore();
+          g.fillStyle = `rgba(0,0,0,${clamp(1 - f.lightness, 0, .7)})`; g.fill();
+          continue;
+        }
+      }
+      g.fill(); g.stroke();
     }
     g.strokeStyle = 'rgba(70,52,40,.45)'; g.lineWidth = 1.1; g.lineCap = 'round';
     g.beginPath();
@@ -798,7 +867,7 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   }
 
   function armPose() {
-    const shoulder = { x: -64, y: 350 }, upper = 150, fore = 142;
+    const shoulder = { x: -64, y: 350 }, upper = 130, fore = 125;
     const dx = arm.x - shoulder.x, dy = arm.y - shoulder.y;
     const distance = clamp(Math.hypot(dx, dy), 40, upper + fore - 2);
     const angle = Math.atan2(dy, dx);
@@ -823,6 +892,21 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
   // The arm sits behind the towel; only the fist is drawn over the corner it grips.
   function drawArm(g) {
     const { shoulder, elbow, hand, wrist } = armPose();
+    if (ready('upper-arm') && ready('forearm')) {
+      const segment = (image, from, to, thickness, extension = 0, straighten = false) => {
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const length = Math.hypot(to.x - from.x, to.y - from.y);
+        g.save(); g.translate(from.x, from.y); g.rotate(angle);
+        // The upper-arm source slopes down to its elbow. Align that elbow with the
+        // actual joint instead of joining the two sprites at their image centres.
+        if (straighten) g.transform(1, -0.17, 0, 1, 0, 7);
+        g.drawImage(image, -12, -thickness / 2, length + 24 + extension, thickness);
+        g.restore();
+      };
+      segment(art['upper-arm'], shoulder, elbow, 84, 0, true);
+      segment(art.forearm, elbow, hand, 68, 12);
+      return;
+    }
     g.save();
     limb(g, shoulder, elbow, 30, 21, 1.45, '#dca27b', '#8b5236');
     limb(g, elbow, hand, 21, 14, 1.2, '#e6b08a', '#96603f');
@@ -846,7 +930,19 @@ export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor
     g.restore();
   }
   function drawFist(g) {
-    const { hand, wrist } = armPose();
+    const { elbow, hand, wrist } = armPose();
+    if (ready('forearm')) {
+      const image = art.forearm;
+      const width = Math.hypot(hand.x - elbow.x, hand.y - elbow.y) + 36;
+      const fistStart = .8;
+      g.save(); g.translate(elbow.x, elbow.y); g.rotate(wrist);
+      // Draw the very same pixels at the very same scale as the forearm behind
+      // the cloth. Only its gripping end needs to appear in front of the towel.
+      g.drawImage(image, image.width * fistStart, 0, image.width * (1 - fistStart), image.height,
+        -12 + width * fistStart, -68 / 2, width * (1 - fistStart), 68);
+      g.restore();
+      return;
+    }
     g.save();
     g.translate(hand.x, hand.y); g.rotate(wrist);
     const fist = g.createRadialGradient(-2, -8, 2, 0, 0, 22);
