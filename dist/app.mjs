@@ -44,7 +44,7 @@ const position=p=>`${p%2===0?'0%':'100%'} ${p<2?'0%':'100%'}`;
 const rivalSpriteStyle=p=>`--sprite-image:url('./assets/rivals-${Math.floor(p/4)}.jpg?v=unique');--sprite-height:${p<2?'208%':p<4?'193%':'200%'};--sprite-x:${p%2===0?'-25%':'-75%'};--sprite-top:${p%4<2?'0':'auto'};--sprite-bottom:${p%4<2?'auto':'0'}`;
 const fightSpriteStyle=rivalSpriteStyle;
 const rivalPortraitButton=r=>`<button type="button" class="rival-portrait portrait-trigger" data-rival-image="${r.id}" style="${rivalSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"></button>`;
-const shopSpriteStyle=id=>{if(id==='chalk')return 'background-image:none';const art={cookies:'shop-cookies.jpg',trenbolone:'shop-trenbolone.jpg'}[id];if(art)return `background-image:url('./assets/${art}');background-position:center;background-size:cover`;const p=['shawarma','protein','serum','wraps','shoes','belt'].indexOf(id);return `background-position:${p%3*50}% ${p<3?'0%':'100%'}`;};
+const shopSpriteStyle=id=>{const art={cookies:'shop-cookies.jpg',trenbolone:'shop-trenbolone.jpg',chalk:'shop-chalk.webp'}[id];if(art)return `background-image:url('./assets/${art}');background-position:center;background-size:cover`;const p=['shawarma','protein','serum','wraps','shoes','belt'].indexOf(id);return `background-position:${p%3*50}% ${p<3?'0%':'100%'}`;};
 const heroStage=s=>s.won?3:Math.min(3,Math.max(s.gym,Math.floor(s.workouts/15)));
 const heroPath=s=>`./assets/hero-${heroStage(s)}.jpg?v=fullbody`;
 const statKeys=Object.keys(stats);
@@ -101,7 +101,7 @@ function shopMarkup(){
     const disabled=maxed||locked||prepared||trainingBoost||state.money<cost;
     const effect=item.type==='gear'?`${item.effect.replace(' навсегда',' за уровень')} · ур. ${level}/${MAX_GEAR_LEVEL}`:item.effect;
     const label=maxed?'МАКСИМУМ':locked?'НОВЫЙ ЗАЛ':prepared?'БОЙ ГОТОВ':trainingBoost?'ПРОТЕИН ЕСТЬ':`${cost} ₽`;
-    return `<article class="shop-item"><div class="shop-art ${item.id==='chalk'?'shop-art-chalk':''}" style="${shopSpriteStyle(item.id)}" role="img" aria-label="${esc(item.name)}">${item.id==='chalk'?'✧':''}</div><div class="shop-details"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><span class="shop-effect">${esc(effect)}</span></div><button class="shop-buy" data-buy="${item.id}" ${disabled?'disabled':''}>${label}</button></article>`;
+    return `<article class="shop-item"><div class="shop-art" style="${shopSpriteStyle(item.id)}" role="img" aria-label="${esc(item.name)}"></div><div class="shop-details"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><span class="shop-effect">${esc(effect)}</span></div><button class="shop-buy" data-buy="${item.id}" ${disabled?'disabled':''}>${label}</button></article>`;
   };
   const groups=[['Еда и запас сил',SHOP.filter(item=>item.type==='food')],['Тренировки',SHOP.filter(item=>item.type==='boost')],['Подготовка к бою',SHOP.filter(item=>item.type==='prep')],['Экипировка',SHOP.filter(item=>item.type==='gear')]];
   return `<div class="training-heading"><h2>ЛАВКА</h2></div><p class="muted">К бою можно выбрать одну подготовку: запас сил, широкую зону или силу атаки. Тренировки и отдых бесплатны.</p>${equipped.length?`<p class="loadout">Сейчас на тебе: ${esc(equipped.join(' · '))}</p>`:''}${groups.map(([title,items])=>`<section class="shop-group"><h3 class="shop-group-title">${title}</h3><div class="shop-list">${items.map(itemMarkup).join('')}</div></section>`).join('')}`;
@@ -212,7 +212,7 @@ function showRandomEvent({event,change}){
   modal(`<div class="dialog-body random-event-dialog">${modalTop('СЛУЧАЙНОЕ СОБЫТИЕ',false)}<div class="random-event-art" style="${art}" role="img" aria-label="Иллюстрация к событию: ${esc(event.text)}"></div><h2 id="dialog-title">ВОТ ТАК ПОВОРОТ.</h2><p class="dialog-copy">${esc(event.text)}</p><div class="random-event-effect ${change<0?'negative':'positive'}"><span>ЭФФЕКТ</span><strong>${effect}</strong></div><button class="primary-button" data-close>ПРОДОЛЖИТЬ <span>↗</span></button></div>`,'random-event');
   tone(change<0?'hit':'perfect');
 }
-function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост. Сила ускоряет жим и сужает его зону; техника сокращает время ответа в захвате; выносливость сужает диапазон пульса и ускоряет его спад. Зал и число тренировок на сложность не влияют.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай в любом месте антистресса: шарики пружинят, энергия возвращается без штрафов. На подработке замахнись и брось полотенце в корзину: ветер, скамья, груша и шкафчики мешают. За смену платят 20 ₽ плюс 15 ₽ за каждое из трёх попаданий. В каждом следующем зале попадание приносит ещё на 5 ₽ больше. Подработка всегда стоит 12 энергии.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики. В лавке можно выбрать одну подготовку на следующий бой: еду для запаса сил, магнезию для широкой зоны или усилитель силы. Экипировка улучшается до третьего уровня по мере открытия залов. За поражение и сдачу списывается 20 ₽ в Подвале, затем на 10 ₽ больше в каждом зале, но не больше наличных. Без денег можно снова выйти на ковёр.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
+function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост. Сила ускоряет жим и сужает его зону; техника сокращает время ответа в захвате; выносливость сужает диапазон пульса и ускоряет его спад. Зал и число тренировок на сложность не влияют.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай по полю: вещи пружинят и сталкиваются, энергия возвращается без штрафов. На подработке замахнись и брось полотенце в корзину: ветер, скамья, груша и шкафчики мешают. За смену платят 20 ₽ плюс 15 ₽ за каждое из трёх попаданий. В каждом следующем зале попадание приносит ещё на 5 ₽ больше. Подработка всегда стоит 12 энергии.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики. В лавке можно выбрать одну подготовку на следующий бой: еду для запаса сил, магнезию для широкой зоны или усилитель силы. Экипировка улучшается до третьего уровня по мере открытия залов. За поражение и сдачу списывается 20 ₽ в Подвале, затем на 10 ₽ больше в каждом зале, но не больше наличных. Без денег можно снова выйти на ковёр.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
 function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ ШКАФ С КУБКАМИ')}<h2 id="dialog-title">ЗАСЛУГИ ПЕРЕД ЖЕЛЕЗОМ.</h2><div class="achievement-list">${achievements.map(([id,name,desc])=>`<div class="achievement-item ${state.achievements.includes(id)?'':'locked'}">${state.achievements.includes(id)?'✓':'○'} ${name}<small>${desc}</small></div>`).join('')}</div></div>`);}
 
 function trainingShell(kind,game){
@@ -379,36 +379,40 @@ function startRestGame(){
   if(working||battle)return;
   if(state.energy===100){toast('Ты уже полон сил.');return;}
   working=true;
-  modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ')}<h2 id="dialog-title">ВЫДОХНИ.</h2><p class="training-reward">ДО +40 ЭНЕРГИИ</p><p class="rest-instruction">Тапни по полю 6 раз — получишь до 40 энергии.</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажми на поле шесть раз, чтобы восстановить энергию"></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="visually-hidden" id="utility-status" role="status">0 из 6 нажатий</div></div>`,'utility');
+  modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ')}<h2 id="dialog-title">ВЫДОХНИ.</h2><p class="training-reward">ДО +40 ЭНЕРГИИ</p><p class="rest-instruction">Тапни по вещам 6 раз — получишь до 40 энергии.</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажми на поле с вещами шесть раз, чтобы восстановить энергию"></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="visually-hidden" id="utility-status" role="status">0 из 6 нажатий</div></div>`,'utility');
   const field=$('rest-playfield');
-  const orbs=Array.from({length:7},(_,i)=>{
-    const node=document.createElement('span');node.className=`rest-orb orb-${i%3}`;node.setAttribute('aria-hidden','true');field.append(node);
-    return {node,x:25+Math.random()*Math.max(1,field.clientWidth-90),y:25+Math.random()*Math.max(1,field.clientHeight-90),vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3};
+  const itemSize=56;
+  const props=['shaker','wraps','gloves','band','towel','shoe'];
+  const items=props.map(name=>{
+    const node=document.createElement('img');node.className='rest-item';node.src=`./assets/rest-game/${name}.webp`;node.alt='';node.draggable=false;node.setAttribute('aria-hidden','true');field.append(node);
+    return {node,x:Math.random()*Math.max(1,field.clientWidth-itemSize),y:Math.random()*Math.max(1,field.clientHeight-itemSize),vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3,angle:0,spin:0};
   });
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reducedMotion)for(const orb of orbs)orb.node.style.transform=`translate3d(${orb.x}px,${orb.y}px,0)`;
+  if(reducedMotion)for(const item of items)item.node.style.transform=`translate3d(${item.x}px,${item.y}px,0)`;
   let active=true,complete=false,pops=0,frameId=0,timer=0,last=performance.now();
   const frame=now=>{
     if(!active)return;
     const step=Math.min(2,(now-last)/16.67);last=now;
-    const width=field.clientWidth-54,height=field.clientHeight-54;
-    for(const orb of orbs){
-      orb.vy+=.17*step;orb.x+=orb.vx*step;orb.y+=orb.vy*step;
+    const width=field.clientWidth-itemSize,height=field.clientHeight-itemSize;
+    for(const item of items){
+      item.vy+=.17*step;item.x+=item.vx*step;item.y+=item.vy*step;
+      item.angle+=item.spin*step;item.spin*=Math.pow(.986,step);
     }
-    // Equal-mass elastic collisions: separate overlapping balls, then exchange
+    // Equal-mass elastic collisions: separate overlapping props, then exchange
     // the component of their velocity along the impact axis.
-    for(let pass=0;pass<2;pass++)for(let i=0;i<orbs.length;i++)for(let j=i+1;j<orbs.length;j++){
-      const a=orbs[i],b=orbs[j],dx=b.x-a.x,dy=b.y-a.y,distance=Math.hypot(dx,dy);
-      if(distance>=54)continue;
-      const nx=distance?dx/distance:1,ny=distance?dy/distance:0,overlap=(54-distance)/2;
+    for(let pass=0;pass<2;pass++)for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
+      const a=items[i],b=items[j],dx=b.x-a.x,dy=b.y-a.y,distance=Math.hypot(dx,dy);
+      if(distance>=itemSize)continue;
+      const nx=distance?dx/distance:1,ny=distance?dy/distance:0,overlap=(itemSize-distance)/2;
       a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
       const relative=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
-      if(relative<0){const impulse=-(1+.9)*relative/2;a.vx-=impulse*nx;a.vy-=impulse*ny;b.vx+=impulse*nx;b.vy+=impulse*ny;}
+      if(relative<0){const impulse=-(1+.9)*relative/2;a.vx-=impulse*nx;a.vy-=impulse*ny;b.vx+=impulse*nx;b.vy+=impulse*ny;const slip=(b.vx-a.vx)*-ny+(b.vy-a.vy)*nx;a.spin-=slip*.003;b.spin+=slip*.003;}
     }
-    for(const orb of orbs){
-      if(orb.x<0||orb.x>width){orb.x=Math.max(0,Math.min(width,orb.x));orb.vx*=-.82;}
-      if(orb.y<0||orb.y>height){orb.y=Math.max(0,Math.min(height,orb.y));orb.vy*=-.78;orb.vx*=.97;}
-      orb.node.style.transform=`translate3d(${orb.x}px,${orb.y}px,0)`;
+    for(const item of items){
+      if(item.x<0||item.x>width){item.x=Math.max(0,Math.min(width,item.x));item.spin+=item.vy*.003;item.vx*=-.82;}
+      if(item.y<0||item.y>height){item.y=Math.max(0,Math.min(height,item.y));if(item.vy>1)item.spin+=item.vx*.002;item.vy*=-.78;item.vx*=.97;item.spin*=.94;}
+      item.spin=Math.max(-.08,Math.min(.08,item.spin));
+      item.node.style.transform=`translate3d(${item.x}px,${item.y}px,0) rotate(${item.angle}rad)`;
     }
     frameId=requestAnimationFrame(frame);
   };
@@ -423,7 +427,15 @@ function startRestGame(){
       spark.style.setProperty('--dx',`${(Math.random()-.5)*180}px`);spark.style.setProperty('--dy',`${(Math.random()-.7)*145}px`);
       field.append(spark);spark.addEventListener('animationend',()=>spark.remove(),{once:true});
     }
-    for(const orb of orbs){const dx=orb.x+27-x,dy=orb.y+27-y,distance=Math.max(28,Math.hypot(dx,dy));const force=4+100/(distance+20);orb.vx+=dx/distance*force+(Math.random()-.5)*2;orb.vy+=dy/distance*force-9;}
+    const reach=Math.max(field.clientWidth,field.clientHeight)*.75;
+    for(const item of items){
+      const dx=item.x+itemSize/2-x,dy=item.y+itemSize/2-y,distance=Math.hypot(dx,dy);
+      const angle=distance>1?Math.atan2(dy,dx):Math.random()*Math.PI*2;
+      const nx=Math.cos(angle),ny=Math.sin(angle),falloff=Math.max(0,1-distance/reach);
+      const force=2+12*falloff*falloff;
+      item.vx+=nx*force;item.vy+=ny*force;
+      item.spin=Math.max(-.08,Math.min(.08,item.spin+(nx*.8+ny*.2+(Math.random()-.5)*.25)*force*.004));
+    }
     pops++;$('rest-pips').children[pops-1].classList.add('filled');$('utility-status').textContent=`${pops} из 6 нажатий`;
     tone(pops===6?'perfect':'tap');
     if(pops===6){complete=true;field.disabled=true;timer=setTimeout(()=>{if(!active)return;active=false;closeModal();apply(rest(state),{eventEligible:true});},850);}

@@ -260,7 +260,6 @@
 .shop-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:10px}
 .shop-details{min-width:0}
 .shop-art{width:58px;height:58px;border:1px solid #5b746c;border-radius:4px;background:#122124 url('./assets/shop-items.jpg') no-repeat;background-size:300% 200%;box-shadow:0 4px 12px #0005}
-.shop-art-chalk{display:grid;place-items:center;color:var(--cyan);font-size:38px;background:#203a36}
 @media(max-width:520px){.shop-item{grid-template-columns:44px minmax(0,1fr) auto;gap:8px;padding:10px}.shop-art{width:44px;height:44px}}
 
 /* Portrait buttons reveal the full square crop without interrupting the fight. */
@@ -475,9 +474,7 @@
 .rest-playfield:hover:not(:disabled){border-color:var(--cyan);filter:brightness(1.08)}
 .rest-playfield:disabled{opacity:1;cursor:default}
 .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.rest-orb{position:absolute;top:0;left:0;width:54px;height:54px;border-radius:50%;pointer-events:none;will-change:transform;background:radial-gradient(circle at 29% 24%,#ffffffed 0 8%,#b5ffee 11%,#72d8b7 42%,#2a8c76 72%,#184f53 100%);box-shadow:inset -8px -8px 16px #103e5377,0 8px 17px #0008,0 0 19px #79d8bb66}
-.rest-orb.orb-1{background:radial-gradient(circle at 29% 24%,#fff 0 8%,#ffe5a8 12%,#eabf7d 43%,#a2694d 75%,#624639 100%);box-shadow:inset -8px -8px 16px #61363077,0 8px 17px #0008,0 0 18px #eabf7d55}
-.rest-orb.orb-2{background:radial-gradient(circle at 29% 24%,#fff 0 8%,#d8d9ff 12%,#a7a5e5 43%,#565c9d 75%,#343b6a 100%);box-shadow:inset -8px -8px 16px #35315e77,0 8px 17px #0008,0 0 18px #a7a5e555}
+.rest-item{position:absolute;top:0;left:0;width:56px;height:56px;object-fit:contain;pointer-events:none;will-change:transform;filter:drop-shadow(0 7px 8px #000a)}
 .rest-ripple,.rest-spark{position:absolute;z-index:3;pointer-events:none}
 .rest-ripple{width:28px;height:28px;border:3px solid #d8fff0;border-radius:50%;transform:translate(-50%,-50%);animation:rest-ripple .65s ease-out both}
 .rest-spark{width:8px;height:8px;background:var(--gold);border-radius:50%;box-shadow:0 0 10px var(--gold);animation:rest-spark .7s ease-out both}
