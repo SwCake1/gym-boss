@@ -13,13 +13,13 @@ const calmLayout = kind => {
 };
 const finite = sim => sim.pos.every(Number.isFinite);
 
-// Every shift includes the two new layouts; wind grows with the gym.
+// Every shift includes an advanced layout; wind grows with the gym.
 for (let seed = 1; seed <= 40; seed++) {
   const shift = planShift(seed % 4, seededRandom(seed));
-  assert.equal(shift.length, 5);
+  assert.equal(shift.length, 3);
   assert.equal(shift[0].kind, 'warmup');
   assert.notEqual(shift[1].kind, shift[2].kind);
-  assert.deepEqual(shift.slice(3).map(layout => layout.kind), ['distance', 'gauntlet']);
+  assert.ok(['distance', 'gauntlet'].includes(shift[2].kind));
   assert.ok(shift.every(layout => layout.basket && layout.name));
   assert.ok(Math.abs(shift[0].wind) <= 60 * 0.45 + 1 || seed % 4 > 0);
 }

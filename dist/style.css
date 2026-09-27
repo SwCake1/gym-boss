@@ -518,8 +518,6 @@
 .fight-scene .fighter-image.player{left:13%;width:30%;background-size:cover;background-position:center 22%;rotate:-2deg}
 .fight-scene .fighter-image.enemy,.fight-scene .fighter-image.enemy.portrait-trigger{right:13%;left:auto;width:30%;height:auto;border-color:var(--orange);background-color:#1a2b2e;background-size:200% 200%;rotate:2deg;filter:none}
 .fight-scene .fighter-image.enemy:hover{filter:brightness(1.12);box-shadow:0 16px 35px #000b,0 0 0 5px #26413fa8}
-.fight-scene .fight-portrait-index{position:absolute;top:10px;bottom:auto;left:10px;right:auto;z-index:2;padding:5px 8px;border-radius:2px;background:#0d2024e8;color:var(--cyan);font:800 10px var(--body);letter-spacing:1px;text-shadow:none}
-.fight-scene .enemy .fight-portrait-index{color:#ff9a7c}
 .fight-scene .fight-portrait-name{position:absolute;z-index:2;left:0;right:0;bottom:0;padding:32px 11px 10px;background:linear-gradient(0deg,#08171af2,#08171a00);color:#fff;font:900 clamp(16px,2.2vw,23px)/.98 var(--display);text-align:left;text-shadow:0 2px 6px #000}
 .fight-scene-vs{position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-9deg);color:#f0dfbf;font:italic 900 36px var(--display);letter-spacing:-2px;text-shadow:0 3px 12px #000,0 0 24px #000}
 .fight-scene .damage-float{z-index:5;bottom:64px;left:28%}
@@ -553,7 +551,6 @@
   .fight-scene.fight-stage{height:245px}
   .fight-scene .fighter-image.player{left:5%;width:40%}
   .fight-scene .fighter-image.enemy,.fight-scene .fighter-image.enemy.portrait-trigger{right:5%;width:40%}
-  .fight-scene .fight-portrait-index{top:6px;left:6px;padding:4px 5px;font-size:8px}
   .fight-scene .fight-portrait-name{padding:23px 6px 7px;font-size:clamp(13px,4vw,18px)}
   .fight-scene-vs{font-size:27px}
   .fight-vitals{gap:10px;padding:11px 0}

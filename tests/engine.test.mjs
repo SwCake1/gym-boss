@@ -101,21 +101,21 @@ assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
 assert.equal(work(tired, 0).earned, 20);
 assert.equal(work(tired, 1).earned, 35);
 assert.equal(work(tired, 3).earned, 65);
-assert.equal(work(tired, 5).earned, 95);
-assert.equal(work(tired, 9).earned, 95, 'hits are capped at five throws');
+assert.equal(work(tired, 5).earned, 65);
+assert.equal(work(tired, 9).earned, 65, 'hits are capped at three throws');
 assert.equal(work(tired, 2.7).hits, 2, 'partial hits do not round up');
 assert.equal(work(tired, NaN).earned, 20);
 assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 20, 'the minimum stays 20 in every gym');
 assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 110);
-assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 5. Заработал 50 ₽ (20 ₽ за смену + 2 × 15 ₽).');
-assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 5. Заработал 20 ₽ — только минимальная ставка.');
-assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [95, 120, 145, 170]);
+assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 50 ₽ (20 ₽ за смену + 2 × 15 ₽).');
+assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 3. Заработал 20 ₽ — только минимальная ставка.');
+assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [65, 80, 95, 110]);
 assert.ok(initial.money + work(tired, 3).earned * 2 >= SHOP.find(item => item.id === 'wraps').cost,
   'Two perfect shifts plus starting cash buy the first permanent upgrade');
 for (let gym = 0; gym < 4; gym++) {
   const pay = workPayout(gym);
-  for (let hits = 0; hits <= 5; hits++) assert.equal(work(freeze({ ...tired, gym }), hits).earned, pay.base + hits * pay.perHit);
-  assert.equal(work(freeze({ ...tired, gym }), 5).earned, pay.max);
+  for (let hits = 0; hits <= 3; hits++) assert.equal(work(freeze({ ...tired, gym }), hits).earned, pay.base + hits * pay.perHit);
+  assert.equal(work(freeze({ ...tired, gym }), 3).earned, pay.max);
 }
 
 const malformed = sanitizeState({
@@ -143,32 +143,32 @@ assert.equal(RANDOM_EVENTS.length, 30);
 assert.equal(new Set(RANDOM_EVENTS.map(event => event.id)).size, 30);
 let eventState = initial;
 let occurred = [];
-for (let action = 1; action <= 7; action++) {
+for (let action = 1; action <= 5; action++) {
   const result = advanceRandomEvent(freeze(eventState), () => 0);
   eventState = result.state;
   if (result.event) occurred.push({ action, id: result.event.id });
 }
-assert.deepEqual(occurred, [{ action: 7, id: 'E01' }]);
-assert.equal(eventState.eventCountdown, 7);
+assert.deepEqual(occurred, [{ action: 5, id: 'E01' }]);
+assert.equal(eventState.eventCountdown, 5);
 assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(eventState))).seenEvents, ['E01']);
-for (let action = 8; action <= 210; action++) {
+for (let action = 6; action <= 150; action++) {
   const result = advanceRandomEvent(freeze(eventState), () => 0);
   eventState = result.state;
   if (result.event) occurred.push({ action, id: result.event.id });
 }
 assert.equal(occurred.length, 30);
-assert.deepEqual(occurred.map(entry => entry.action), Array.from({ length: 30 }, (_, i) => (i + 1) * 7));
+assert.deepEqual(occurred.map(entry => entry.action), Array.from({ length: 30 }, (_, i) => (i + 1) * 5));
 assert.equal(new Set(occurred.map(entry => entry.id)).size, 30);
 assert.equal(eventState.eventCountdown, null);
 assert.equal(advanceRandomEvent(eventState, () => 0).state, eventState);
-assert.equal(advanceRandomEvent(initial, () => 0.999).state.eventCountdown, 14);
+assert.equal(advanceRandomEvent(initial, () => 0.999).state.eventCountdown, 11);
 let slowEventState = initial;
-for (let action = 1; action <= 15; action++) {
+for (let action = 1; action <= 12; action++) {
   const result = advanceRandomEvent(slowEventState, () => 0.999);
-  assert.equal(Boolean(result.event), action === 15);
+  assert.equal(Boolean(result.event), action === 12);
   slowEventState = result.state;
 }
-assert.equal(slowEventState.eventCountdown, 15);
+assert.equal(slowEventState.eventCountdown, 12);
 const fifthEvent = advanceRandomEvent({ ...initial, eventCountdown: 1 }, () => 0.15);
 assert.equal(fifthEvent.event.id, 'E05');
 assert.equal(fifthEvent.state.strength, 1);
@@ -180,7 +180,7 @@ assert.equal(burger.change, -75);
 const restoredEvents = sanitizeState({ ...initial, seenEvents: ['E01', 'E01', 'bad'], eventCountdown: 12 });
 assert.deepEqual(restoredEvents.seenEvents, ['E01']);
 assert.equal(restoredEvents.eventCountdown, 12);
-assert.equal(sanitizeState({ ...initial, eventCountdown: 30 }).eventCountdown, 15);
+assert.equal(sanitizeState({ ...initial, eventCountdown: 30 }).eventCountdown, 12);
 
 let supplemented = buy(freeze({ ...initial, money: 1000 }), 'protein').state;
 for (let charge = 3; charge >= 1; charge--) {
@@ -367,6 +367,7 @@ assert.ok(beginFight({ ...rest(broke.state).state, energy: 100 }).battle, 'A bro
 const surrender = forfeitFight(basic.state, basic.battle);
 assert.equal(surrender.penalty, 20);
 assert.equal(surrender.state.money, basic.state.money - 20);
+assert.equal(surrender.state.energy, basic.state.energy, 'Surrender does not restore energy');
 assert.ok(forfeitFight(initial, null).error);
 
 // On a failed challenge, a deliberate player completes two balanced workouts

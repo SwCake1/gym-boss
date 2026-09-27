@@ -122,7 +122,7 @@ export function sanitizeState(input) {
   if (!clean.fightPrep && Object.hasOwn(PREP, input.fightPrep)) clean.fightPrep = input.fightPrep;
   clean.log = Array.isArray(input.log) ? input.log.filter(item => typeof item === 'string').slice(-16).map(item => item.slice(0, 240)) : [];
   clean.seenEvents = [...new Set(Array.isArray(input.seenEvents) ? input.seenEvents.filter(id => EVENT_IDS.has(id)) : [])];
-  clean.eventCountdown = clean.seenEvents.length === RANDOM_EVENTS.length || typeof input.eventCountdown !== 'number' ? null : finite(input.eventCountdown, null, 1, 15);
+  clean.eventCountdown = clean.seenEvents.length === RANDOM_EVENTS.length || typeof input.eventCountdown !== 'number' ? null : finite(input.eventCountdown, null, 1, 12);
   // Achievements are derived from actual progress, rather than trusted save flags.
   return award(clean);
 }
@@ -141,7 +141,7 @@ function commit(state, message) {
 }
 
 const randomIndex = (length, random) => Math.min(length - 1, Math.max(0, Math.floor(random() * length)));
-const nextEventInterval = random => 7 + randomIndex(9, random);
+const nextEventInterval = random => 5 + randomIndex(8, random);
 
 // Called once after a successful training, rest, or work action.
 export function advanceRandomEvent(state, random = Math.random) {
@@ -214,7 +214,7 @@ export function rest(state) {
 }
 
 // Towel toss pay: a guaranteed shift rate plus a hit bonus that grows by gym.
-export const WORK_THROWS = 5;
+export const WORK_THROWS = 3;
 export function workPayout(gym = 0) {
   const level = finite(gym, 0, 0, GYMS.length - 1);
   const base = 20, perHit = 15 + level * 5;
@@ -381,7 +381,7 @@ export function forfeitFight(state, battle) {
   const penalty = defeatPenalty(state);
   const drain = current.serum && !current.serumPaidAtStart ? 15 : 0;
   const message = `Сдался. Штраф ${penalty} ₽. Отдохни и возвращайся.`;
-  return { state: commit({ ...state, money: state.money - penalty, energy: Math.min(100, Math.max(0, state.energy + 5 - drain)) }, message), message, penalty };
+  return { state: commit({ ...state, money: state.money - penalty, energy: Math.max(0, state.energy - drain) }, message), message, penalty };
 }
 
 export function fightTurn(state, battle, move, timing = 0.5) {

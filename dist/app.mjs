@@ -379,7 +379,7 @@ function startRestGame(){
   if(working||battle)return;
   if(state.energy===100){toast('Ты уже полон сил.');return;}
   working=true;
-  modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ')}<h2 id="dialog-title">ВЫДОХНИ.</h2><p class="training-reward">ДО +40 ЭНЕРГИИ</p><p class="rest-instruction">Тапни по вещам 6 раз — получишь до 40 энергии.</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажми на поле с вещами шесть раз, чтобы восстановить энергию"></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="visually-hidden" id="utility-status" role="status">0 из 6 нажатий</div></div>`,'utility');
+  modal(`<div class="dialog-body utility-game rest-game">${modalTop('ОТДЫХ')}<h2 id="dialog-title">ВЫДОХНИ.</h2><p class="training-reward">ДО +40 ЭНЕРГИИ</p><p class="rest-instruction">Потыкай по вещам — получишь 40 энергии.</p><button type="button" class="rest-playfield" id="rest-playfield" aria-label="Нажми на поле с вещами шесть раз, чтобы восстановить энергию"></button><div class="rest-pips" id="rest-pips" aria-hidden="true">${'<i></i>'.repeat(6)}</div><div class="visually-hidden" id="utility-status" role="status">0 из 6 нажатий</div></div>`,'utility');
   const field=$('rest-playfield');
   const itemSize=56;
   const props=['shaker','wraps','gloves','band','towel','shoe'];
@@ -447,7 +447,7 @@ function startWorkGame(){
   if(state.energy<12){toast('Сначала передохни: для работы нужно 12 энергии.',true);return;}
   working=true;
   const pay=workPayout(state.gym);
-  modal(`<div class="dialog-body utility-game work-game">${modalTop('ПОДРАБОТКА · −12 ЭНЕРГИИ')}<div class="work-heading"><h2 id="dialog-title">МЕТАТЕЛЬ ПОЛОТЕНЕЦ</h2><p class="training-reward">${pay.base} ₽ ЗА СМЕНУ · +${pay.perHit} ₽ ЗА ПОПАДАНИЕ</p></div><p class="dialog-copy">Замахнись: тяни назад и отпускай. Полотенце — настоящая ткань: парусит на ветру вентилятора, цепляется за бортик и отскакивает от груши. За попадание платят на 5 ₽ больше с каждым новым залом.</p><div class="towel-stage"><canvas class="towel-canvas" id="towel-canvas" width="960" height="540" tabindex="0" aria-label="Прачечная качалки. Тяни назад мышью или пальцем и отпускай, чтобы бросить полотенце в корзину. Стрелками настрой замах, пробелом брось." aria-describedby="utility-status"></canvas></div><div class="towel-controls"><div class="towel-pips" id="towel-pips" aria-label="Пять бросков">${Array.from({length:WORK_THROWS},()=>'<i></i>').join('')}</div><span class="towel-keys">СТРЕЛКИ + ПРОБЕЛ</span><button type="button" class="towel-throw" id="towel-throw">БРОСИТЬ</button></div><div class="utility-game-status" id="utility-status" role="status">Бросок 1 / ${WORK_THROWS}</div></div>`,'utility');
+  modal(`<div class="dialog-body utility-game work-game">${modalTop('ПОДРАБОТКА · −12 ЭНЕРГИИ')}<div class="work-heading"><h2 id="dialog-title">МЕТАТЕЛЬ ПОЛОТЕНЕЦ</h2><p class="training-reward">${pay.base} ₽ ЗА СМЕНУ · +${pay.perHit} ₽ ЗА ПОПАДАНИЕ</p></div><p class="dialog-copy">Замахнись: тяни назад и отпускай. Полотенце — настоящая ткань: парусит на ветру вентилятора, цепляется за бортик и отскакивает от груши. За попадание платят на 5 ₽ больше с каждым новым залом.</p><div class="towel-stage"><canvas class="towel-canvas" id="towel-canvas" width="960" height="540" tabindex="0" aria-label="Прачечная качалки. Тяни назад мышью или пальцем и отпускай, чтобы бросить полотенце в корзину. Стрелками настрой замах, пробелом брось." aria-describedby="utility-status"></canvas></div><div class="towel-controls"><div class="towel-pips" id="towel-pips" aria-label="Три броска">${Array.from({length:WORK_THROWS},()=>'<i></i>').join('')}</div><span class="towel-keys">СТРЕЛКИ + ПРОБЕЛ</span><button type="button" class="towel-throw" id="towel-throw">БРОСИТЬ</button></div><div class="utility-game-status" id="utility-status" role="status">Бросок 1 / ${WORK_THROWS}</div></div>`,'utility');
   const canvas=$('towel-canvas');
   let finished=false;
   const status=text=>{const el=$('utility-status');if(el)el.textContent=text;};
@@ -513,9 +513,9 @@ function fightView(message=''){
   modal(`<div class="dialog-body fight-screen">
     <header class="fight-header"><div><span class="fight-eyebrow">${esc(GYMS[state.gym].name)} · КОВЁР</span><h2 id="dialog-title">${esc(r.name.toUpperCase())}</h2></div><span class="fight-round">РАУНД <strong>${battle.round+1}</strong></span></header>
     <div class="fight-scene fight-stage" style="--gym-position:${position(state.gym)}" role="group" aria-label="Бой в зале ${esc(GYMS[state.gym].name)}">
-      <div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')" role="img" aria-label="Твой персонаж"><span class="fight-portrait-index">01 / ТЫ</span><span class="fight-portrait-name">ТВОЙ ВЫХОД</span></div>
+      <div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')" role="img" aria-label="Твой персонаж"><span class="fight-portrait-name">ТЫ</span></div>
       <span class="fight-scene-vs" aria-hidden="true">VS</span>
-      <button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span class="fight-portrait-index">02 / СОПЕРНИК</span><span class="fight-portrait-name">${esc(r.name)}</span></button>
+      <button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span class="fight-portrait-name">${esc(r.name)}</span></button>
       <span class="damage-float" id="player-damage" aria-hidden="true"></span><span class="damage-float" id="enemy-damage" aria-hidden="true"></span>
     </div>
     <div class="fight-vitals"><div class="hp-meter"><div class="hp-label"><span>ТВОЁ ЗДОРОВЬЕ</span><strong id="player-hp-value">${battle.playerHp} / ${playerMaxHp}</strong></div><div class="hp-track"><i id="player-hp-bar" style="width:${battle.playerHp/playerMaxHp*100}%"></i></div></div><div class="hp-meter"><div class="hp-label"><span>ЗДОРОВЬЕ СОПЕРНИКА</span><strong id="enemy-hp-value">${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i id="enemy-hp-bar" style="width:${enemyHpPct}%"></i></div></div></div>
@@ -628,6 +628,15 @@ function resetGame(){
   render();
   toast('Новая жизнь. Старые шорты. Погнали.');
 }
+function showSurrenderPrompt(){
+  if(roundLock){toast('Дождись конца обмена ударами.');return;}
+  if(!battle)return;
+  const preview=forfeitFight(state,battle);
+  if(preview.error){toast(preview.error,true);return;}
+  const energyEffect=preview.state.energy===state.energy?`После сдачи останется ${state.energy} энергии.`:`После сдачи останется ${preview.state.energy} энергии (сейчас ${state.energy}).`;
+  modal(`<div class="dialog-body surrender-prompt">${modalTop('БОЙ · СДАЧА',false)}<h2 id="dialog-title">СДАТЬСЯ?</h2><p class="dialog-copy">Бой закончится без победы и награды. Штраф: <strong>${preview.penalty} ₽</strong>, останется ${preview.state.money} ₽.</p><p class="dialog-copy">${energyEffect} Потраченная в начале боя энергия не вернётся.</p><div class="dialog-actions"><button type="button" class="secondary-button" id="cancel-surrender">ПРОДОЛЖИТЬ БОЙ</button><button type="button" class="primary-button" id="confirm-surrender">СДАТЬСЯ · −${preview.penalty} ₽</button></div></div>`,'surrender-confirm');
+  $('cancel-surrender').focus({preventScroll:true});
+}
 function surrenderFight(){
   if(roundLock||!battle)return;
   const result=forfeitFight(state,battle);
@@ -660,11 +669,34 @@ function handleClick(ev){
     case 'sound-toggle': sound=!sound;persist();render();tone('perfect');break;
     case 'reset-button': resetPrompt();break;
     case 'confirm-reset': resetGame();break;
-    case 'surrender-button': surrenderFight();break;
+    case 'surrender-button': showSurrenderPrompt();break;
+    case 'cancel-surrender': fightView();break;
+    case 'confirm-surrender': surrenderFight();break;
   }
 }
 document.addEventListener('click',handleClick);
-$('game-dialog').addEventListener('cancel',ev=>{ev.preventDefault();closeModal();});
+let fightEscapePending=false;
+document.addEventListener('keydown',ev=>{
+  if(ev.key!=='Escape'||!$('game-dialog').open||!['fight','surrender-confirm'].includes(modalKind))return;
+  ev.preventDefault();ev.stopImmediatePropagation();
+  if(ev.repeat)return;
+  fightEscapePending=true;
+  if(modalKind==='fight')showSurrenderPrompt();else fightView();
+  setTimeout(()=>{fightEscapePending=false;},150);
+},true);
+$('game-dialog').addEventListener('cancel',ev=>{
+  ev.preventDefault();
+  if(fightEscapePending)return;
+  if(modalKind==='fight'){showSurrenderPrompt();return;}
+  if(modalKind==='surrender-confirm'){fightView();return;}
+  closeModal();
+});
+$('game-dialog').addEventListener('close',()=>{
+  if(!battle||battle.finished)return;
+  if(fightEscapePending){if(modalKind==='fight')fightView();else if(modalKind==='surrender-confirm')showSurrenderPrompt();return;}
+  if(modalKind==='fight')roundLock?fightView():showSurrenderPrompt();
+  else if(modalKind==='surrender-confirm')fightView();
+});
 document.querySelector('.tabbar').addEventListener('keydown',ev=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(ev.key))return;ev.preventDefault();const tabs=['gym','fight','shop','road'];let i=tabs.indexOf(tab);i=ev.key==='Home'?0:ev.key==='End'?3:(i+(ev.key==='ArrowRight'?1:3))%4;tab=tabs[i];render();$(`tab-${tab}`).focus();});
 let lastTick=Date.now();setInterval(()=>{const now=Date.now();if(!document.hidden&&!state.won){state={...state,playSeconds:state.playSeconds+Math.min(10,Math.round((now-lastTick)/1000))};persist();}lastTick=now;},5000);
 document.addEventListener('visibilitychange',()=>{lastTick=Date.now();persist();});window.addEventListener('pagehide',persist);

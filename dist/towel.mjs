@@ -22,11 +22,11 @@ export function seededRandom(seed = 1) {
 const LAYOUT_NAMES = { warmup: 'Разминка', bench: 'Через скамью', bag: 'Груша на пути', lockers: 'На шкафчик', distance: 'Дальний угол', gauntlet: 'Скамья и груша' };
 const WIND_LIMITS = [60, 105, 145, 185];
 
-// One shift is five throws: a warm-up, two classic obstacles, and two new layouts.
+// One shift is three throws: a warm-up, a classic obstacle, and an advanced layout.
 export function planShift(gym = 0, random = Math.random) {
   const pool = ['bench', 'bag', 'lockers'];
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  return ['warmup', pool[0], pool[1], 'distance', 'gauntlet'].map((kind, index) => createLayout(kind, gym, random, index));
+  return ['warmup', pool[0], random() < 0.5 ? 'distance' : 'gauntlet'].map((kind, index) => createLayout(kind, gym, random, index));
 }
 
 export function createLayout(kind, gym = 0, random = Math.random, index = 1) {
@@ -419,7 +419,7 @@ export function outcomeText(result) {
   return { title, line };
 }
 
-export function mountTowelGame(canvas, { gym = 0, throws = 5, perHit = 0, payFor = () => 0, sound = () => {}, onThrow = () => {}, onShot = () => {}, onDone = () => {}, reducedMotion = false } = {}) {
+export function mountTowelGame(canvas, { gym = 0, throws = 3, perHit = 0, payFor = () => 0, sound = () => {}, onThrow = () => {}, onShot = () => {}, onDone = () => {}, reducedMotion = false } = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const W = WORLD.width, H = WORLD.height, anchor = WORLD.anchor, level = clamp(Math.floor(gym) || 0, 0, 3);
@@ -428,7 +428,7 @@ export function mountTowelGame(canvas, { gym = 0, throws = 5, perHit = 0, payFor
   let scale = 1, ui = 1, bg = null, fg = null, vignette = null;
   let index = -1, layout = null, sim = null, phase = 'aim', active = true, raf = 0, last = performance.now(), accumulator = 0;
   let pull = { x: 0, y: 0 }, drag = null, hits = 0, banner = null, fade = 0, fadeTarget = 0, pendingNext = 0;
-  let particles = [], shake = 0, slowUntil = 0, slowUsed = false, lastSound = 0, flicker = 0, now = performance.now();
+  let particles = [], shake = 0, slowUntil = 0, slowUsed = false, lastSound = 0, now = performance.now();
   const arm = { x: anchor.x, y: anchor.y, follow: 0 };
   const streaks = Array.from({ length: 34 }, () => ({ x: Math.random() * W, y: 40 + Math.random() * 380, z: (Math.random() - 0.5) * 120, length: 30 + Math.random() * 70, speed: 0.6 + Math.random() * 0.8 }));
   const art = {};
@@ -1223,8 +1223,6 @@ export function mountTowelGame(canvas, { gym = 0, throws = 5, perHit = 0, payFor
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(scale, 0, 0, scale, sx * scale, sy * scale);
     ctx.drawImage(bg, 0, 0, W, H);
-    if (Math.random() < 0.006) flicker = 0.14;
-    if (flicker > 0) { ctx.fillStyle = `rgba(8,18,21,${flicker > 0.07 ? 0.75 : 0.35})`; ctx.fillRect(360, 40, 220, 90); flicker -= dt; }
     drawClock(ctx);
     drawFan(ctx, t);
     drawShadow(ctx);
