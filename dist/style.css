@@ -563,3 +563,97 @@ dialog:not(.keyboard-focus) :focus-visible{outline:none}
 }
 @media(max-width:400px){.fight-scene.fight-stage{height:218px}.fight-round{font-size:9px}}
 @media(max-height:720px) and (min-width:641px){.fight-scene.fight-stage{height:230px}.fight-screen{padding-top:17px;padding-bottom:16px}.fight-control{padding-top:10px;padding-bottom:10px}}
+
+/* On phones the live control is the main event; the training clip becomes a small corner visual. */
+@media(max-width:640px){
+  #game-dialog:has(.training-dialog),#game-dialog:has(.fight-screen){width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
+  .training-dialog{display:grid;grid-template-columns:minmax(0,1fr) 82px;column-gap:10px;row-gap:5px;padding:14px 16px 16px}
+  .training-dialog .dialog-top{grid-column:1/-1;margin:0 0 2px}
+  .training-dialog .dialog-top .tiny-label{font-size:10px}
+  .training-dialog .close-button{width:34px;height:34px}
+  .training-dialog h2{grid-column:1;font-size:clamp(25px,7vw,31px);line-height:.95;margin:0}
+  .training-dialog .dialog-copy{grid-column:1;font-size:12px;line-height:1.25;margin:1px 0 0}
+  .training-dialog .training-reward{grid-column:1;margin:3px 0 0;padding:5px 7px;font-size:9px;line-height:1.2;width:max-content;max-width:100%}
+  .training-dialog .workout-stage{display:contents}
+  .training-dialog .workout-photo.training-gif{grid-column:2;grid-row:2/5;width:82px;height:82px;max-height:none;align-self:center;object-fit:cover;margin:0;box-shadow:none}
+  .training-dialog .minigame-content{grid-column:1/-1;margin-top:9px}
+  .minigame-heading{margin-bottom:7px}
+  .minigame-heading strong{font-size:18px}
+  .minigame-content .primary-button{min-height:52px;margin-top:10px;padding:10px 13px;font-size:15px}
+  .minigame-content .primary-button kbd{font-size:9px;padding:4px 5px}
+  .minigame-content .workout-score{margin-top:9px}
+  .minigame-content .timing-result{min-height:0;margin-top:8px;font-size:12px;line-height:1.25}
+  .lift-game{grid-template-columns:92px minmax(0,1fr);gap:9px;min-height:132px;padding:10px}
+  .lift-track{height:110px;width:55px}
+  .lift-weight{width:79px}
+  .lift-weight i{width:14px;height:24px}
+  .lift-readout strong{font-size:43px}
+  .lift-readout span{font-size:9px}
+  .grip-cue{min-height:65px;padding:9px;gap:9px}
+  .grip-cue span{font-size:42px;min-width:43px}
+  .grip-cue strong{font-size:17px}
+  .grip-clock{margin:7px 0}
+  .grip-rule{margin:6px 0 8px;font-size:11px}
+  .grip-choice{gap:2px;padding:7px 4px}
+  .grip-choice span{font-size:27px}
+  .grip-choice strong{font-size:9px}
+  .grip-choice small{font-size:9px}
+  .cardio-heart{height:53px;font-size:50px}
+  .cardio-readout{margin:0 0 8px}
+  .cardio-readout strong{font-size:39px}
+  .cardio-gauge{height:21px}
+  .cardio-scale{margin-top:5px}
+  .fight-screen{padding:13px 15px 14px}
+  .fight-header{margin-bottom:7px}
+  .fight-header h2{font-size:clamp(24px,6.7vw,30px)}
+  .fight-eyebrow{margin-bottom:3px;font-size:9px}
+  .fight-scene.fight-stage{height:clamp(116px,20dvh,158px)}
+  .fight-scene .fighter-image{top:7px;bottom:7px}
+  .fight-scene .fight-portrait-name{padding:17px 5px 5px;font-size:clamp(11px,3.5vw,15px)}
+  .fight-vitals{gap:10px;padding:8px 0 9px}
+  .fight-vitals .hp-label{font-size:9px;gap:4px}
+  .fight-vitals .hp-label strong{font-size:11px;white-space:nowrap}
+  .fight-control{padding:9px 11px 10px;margin-top:8px}
+  .fight-timing-heading{margin-top:7px}
+  .fight-control .fight-timing-track{height:17px;margin:6px 0 8px}
+  .fight-control .attack-button{min-height:52px;padding:10px 13px}
+  .fight-control .attack-button strong{font-size:19px}
+  .fight-log{margin-top:7px;padding:7px 9px}
+  .fight-log-summary{margin-bottom:5px}
+  .fight-log-stats{gap:5px}
+  .fight-log-stat{padding:5px 7px}
+  .fight-log-stat span{font-size:8px}
+  .fight-log-stat strong{font-size:20px}
+  .fight-log-stat small{font-size:9px}
+  .fight-log-note{min-height:0;margin-top:5px;font-size:10px;line-height:1.2}
+  .fight-footer{margin-top:7px;gap:8px;font-size:10px}
+  .fight-rules{margin-top:5px;font-size:10px}
+}
+@media(max-width:360px){
+  .training-dialog{grid-template-columns:minmax(0,1fr) 66px;padding-inline:11px}
+  .training-dialog .workout-photo.training-gif{width:66px;height:66px}
+  .training-dialog h2{font-size:24px}
+  .fight-screen{padding-inline:10px}
+  .fight-vitals .hp-label span{font-size:8px}
+}
+@media(max-width:360px) and (max-height:620px){
+  .fight-scene.fight-stage{height:94px}
+  .fight-log{padding:5px 7px}
+  .fight-log-summary{margin-bottom:3px}
+  .fight-log-stat{padding:4px 6px}
+  .fight-log-stat small,.fight-log-note,.fight-footer .battle-hint{display:none}
+  .fight-footer{justify-content:flex-end}
+}
+.work-copy-compact{display:none}
+@media(max-width:640px){
+  #game-dialog:has(.work-game){width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
+  .work-game{padding:14px 16px 16px}
+  .work-game .dialog-top{margin-bottom:8px}
+  .work-heading h2{font-size:clamp(24px,6.8vw,30px)}
+  .work-game .training-reward{padding:5px 7px;font-size:9px}
+  .work-copy-full{display:none}
+  .work-copy-compact{display:inline}
+  .work-game .dialog-copy{margin:8px 0 11px;font-size:12px;line-height:1.35}
+  .work-game .towel-controls{margin-top:9px}
+  .work-game .utility-game-status{margin-top:7px}
+}
