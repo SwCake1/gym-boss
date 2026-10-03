@@ -127,17 +127,18 @@ const tired = freeze({ ...initial, energy: 20 });
 assert.equal(rest(tired).restored, 40);
 assert.equal(rest(freeze({ ...initial, energy: 90 })).restored, 10);
 assert.equal(work(tired, 0).earned, 20);
-assert.equal(work(tired, 1).earned, 35);
-assert.equal(work(tired, 3).earned, 65);
-assert.equal(work(tired, 5).earned, 65);
-assert.equal(work(tired, 9).earned, 65, 'hits are capped at three throws');
+assert.equal(work(tired, 1).earned, 45);
+assert.equal(work(tired, 3).earned, 95);
+assert.equal(work(tired, 5).earned, 95);
+assert.equal(work(tired, 9).earned, 95, 'hits are capped at three throws');
 assert.equal(work(tired, 2.7).hits, 2, 'partial hits do not round up');
 assert.equal(work(tired, NaN).earned, 20);
 assert.equal(work(freeze({ ...tired, gym: 3 }), 0).earned, 20, 'the minimum stays 20 in every gym');
-assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 110);
-assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 50 ₽ (20 ₽ за смену + 2 × 15 ₽).');
+assert.equal(work(freeze({ ...tired, gym: 3 }), 3).earned, 155);
+assert.equal(work(tired, 2).message, 'Полотенец в корзине: 2 из 3. Заработал 70 ₽ (20 ₽ за смену + 2 × 25 ₽).');
 assert.equal(work(tired, 0).message, 'Полотенец в корзине: 0 из 3. Заработал 20 ₽ — только минимальная ставка.');
-assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [65, 80, 95, 110]);
+assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).perHit), [25, 30, 40, 45]);
+assert.deepEqual(GYMS.map((_, gym) => workPayout(gym).max), [95, 110, 140, 155]);
 assert.ok(initial.money + work(tired, 3).earned * 2 >= SHOP.find(item => item.id === 'wraps').cost,
   'Two perfect shifts plus starting cash buy the first permanent upgrade');
 for (let gym = 0; gym < 4; gym++) {

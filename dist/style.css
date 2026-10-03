@@ -228,12 +228,25 @@
 .stat strong,.energy-box strong{white-space:nowrap}
 .energy-box.gained strong{color:var(--orange)}
 .stat-help{position:relative;z-index:2;display:inline-grid;place-items:center;flex:none;width:12px;height:14px;padding:0;border:0;background:transparent;color:#90a8a2;opacity:.5;font:700 10px var(--body);line-height:1}
-.stat-help:hover,.stat-help:focus,.stat-help:focus-visible{color:var(--cyan);opacity:1;background:transparent}
+.stat-help:hover,.stat-help:focus,.stat-help:focus-visible{z-index:5;color:var(--cyan);opacity:1;background:transparent}
+.stat-help:active{transform:none}
 .stat-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);width:min(330px,calc(100vw - 36px));padding:11px 12px;border:1px solid #71958a;border-radius:3px;background:#102326;color:#e6f1e9;box-shadow:0 10px 24px #0009;font:500 12px/1.45 var(--body);text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s}
 .stat-tooltip>strong,.stat-hint-line{display:block}
+.stat-tooltip{overflow-y:auto}
+.stat-help:hover .stat-tooltip,.stat-help:focus .stat-tooltip{pointer-events:auto}
 .stat-tooltip>strong{color:var(--cyan);font-size:13px;margin-bottom:7px}
 .stat-hint-line{padding:7px 0;border-top:1px solid #42635a;font:500 13px/1.5 var(--body)}
 .stat-hint-line b{color:var(--cyan);font-weight:700}
+.stat-tooltip .stat-hint-summary{display:block;color:var(--ink);font:700 15px/1.4 var(--body);white-space:normal;margin-top:5px}
+.stat-hint-calculation{display:block;margin-top:8px;padding-top:9px;border-top:1px solid #42635a;color:var(--muted);font:400 12px/1.45 var(--body)}
+.stat-hint-calculation-title{display:block;font-weight:500}
+.stat-hint-formula{display:block;color:var(--muted);margin-top:4px;font:400 12px/1.45 var(--body);font-variant-numeric:tabular-nums}
+.stat-hint-calculation .stat-hint-note{font-weight:400}
+.stat-hint-note{display:block;color:var(--muted);font:500 12px/1.45 var(--body);margin-top:5px}
+.fighter-metrics,.fight-rival-stats{position:relative}
+.fighter-metrics .stat-help,.fight-rival-stats .stat-help{position:static}
+.fighter-metrics .stat-tooltip,.fight-rival-stats .stat-tooltip{left:0;right:auto;width:min(330px,100%);z-index:5}
+.fight-rival-stats .stat-tooltip{top:calc(100% + 8px);bottom:auto}
 .stat-help:hover .stat-tooltip,.stat-help:focus .stat-tooltip{opacity:1;visibility:visible;transform:translateY(0)}
 .stat:last-child .stat-tooltip,.energy-box .stat-tooltip{left:auto;right:0}
 @media(max-width:520px){.stat-tooltip{width:min(280px,calc(100vw - 24px))}.stat:nth-child(2) .stat-tooltip{left:50%;transform:translate(-50%,4px)}.stat:nth-child(2) .stat-help:hover .stat-tooltip,.stat:nth-child(2) .stat-help:focus .stat-tooltip{transform:translate(-50%,0)}}
@@ -367,7 +380,7 @@
 .exercise-icon img{display:block;width:100%;height:100%;object-fit:contain;transform:scale(1.35)}
 @media(max-width:640px){
   .campaign-strip{padding:14px 0 16px}
-  .campaign-strip>div.campaign-progress{grid-template-columns:minmax(0,1fr) auto;gap:12px;min-height:0;align-items:center}
+  .campaign-strip>div.campaign-progress{grid-template-columns:minmax(0,1fr) auto;gap:12px;min-height:0;align-items:center;border:0}
   .campaign-progress>span{font-size:11px;letter-spacing:1.3px}
   .campaign-progress strong{font-size:12px}
   .campaign-route{display:none}

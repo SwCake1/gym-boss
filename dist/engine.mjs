@@ -243,7 +243,7 @@ export function rest(state) {
 export const WORK_THROWS = 3;
 export function workPayout(gym = 0) {
   const level = finite(gym, 0, 0, GYMS.length - 1);
-  const base = 20, perHit = 15 + level * 5;
+  const base = 20, perHit = Math.round((15 + level * 5) * 1.5 / 5) * 5;
   return { base, perHit, max: base + perHit * WORK_THROWS };
 }
 
