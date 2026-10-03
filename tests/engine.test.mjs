@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  GYMS, RIVALS, SHOP, createState, sanitizeState, power, nextRival,
+  GYMS, RIVALS, SHOP, HERO_FORMS, physiquePower, heroStage, heroEvolution, createState, sanitizeState, power, nextRival,
   train, trainingDifficulty, liftQuality, rest, work, workPayout, buy, gearCost, MAX_GEAR_LEVEL,
   beginFight, fightTurn, forfeitFight, defeatPenalty, fightTimingWindow,
   fightMovePreview, fightMaxHp, fightMaxStamina, fightStartingStamina, migrateBattle,
@@ -76,6 +76,34 @@ assert.ok(trainingLevels.at(-1).liftZone > 8 && gripLevels.at(-1).gripLimit > 14
 
 const initial = freeze(createState());
 assert.equal(power(initial), 9);
+
+// Physique depends on lasting power, independently of gyms, wins and workouts.
+assert.equal(HERO_FORMS.length, 12);
+assert.equal(heroStage(initial), 0);
+assert.equal(heroStage({ ...initial, gym: 3, wins: 12, won: true, workouts: 1000 }), 0);
+const atPower = value => {
+  const stat = (value - 4.5) / 0.62;
+  return { ...initial, strength: stat, technique: stat, endurance: stat };
+};
+for (const [stage, form] of HERO_FORMS.entries()) {
+  const character = atPower(form.power);
+  assert.equal(physiquePower(character), form.power);
+  assert.equal(heroStage(character), stage);
+  if (stage) assert.equal(heroStage(atPower(form.power - 1)), stage - 1);
+  for (const fightPrep of ['serum', 'trenbolone']) {
+    assert.equal(heroStage({ ...character, fightPrep }), stage);
+    assert.equal(heroEvolution(character, { ...character, fightPrep }), null);
+  }
+}
+assert.equal(heroStage(atPower(1)), 0);
+assert.equal(heroStage(atPower(300)), 11);
+assert.equal(heroEvolution(initial, atPower(11)), null, 'power gain within a form has no popup');
+assert.deepEqual(heroEvolution(initial, atPower(31)), { from: 0, to: 5, beforePower: 9, afterPower: 31 }, 'multiple thresholds yield one before/after comparison');
+assert.equal(heroEvolution(atPower(31), atPower(16)), null, 'loss does not announce a strength gain');
+assert.equal(heroEvolution(atPower(31), atPower(31)), null, 'rendering unchanged state does not repeat a milestone');
+assert.ok(heroEvolution(atPower(11), train(atPower(11), 'strength', 1).state), 'training crossing a threshold evolves');
+assert.ok(heroEvolution(atPower(11), buy({ ...atPower(11), money: 1000 }, 'belt').state), 'lasting gear stat gain evolves');
+
 assert.equal(nextRival(initial).id, 'rival-01');
 assert.equal(buy(initial, 'belt').state, initial);
 assert.equal(buy(initial, 'missing-item').state, initial);
@@ -121,7 +149,7 @@ for (let gym = 0; gym < 4; gym++) {
 const malformed = sanitizeState({
   ...initial, name: '<>\u0000  ', wins: 99, gym: -8, won: false, strength: Infinity, technique: NaN,
   endurance: -100, energy: Infinity, money: -50, workouts: NaN, totalWork: -1,
-  respect: '900', playSeconds: Infinity, startedAt: Infinity,
+  playSeconds: Infinity, startedAt: Infinity,
   equipment: ['belt', 'belt', 'bad-id', '__proto__', null],
   buff: { id: 'protein', charges: Infinity }, log: [null, 5, 'one'], achievements: ['hacked'],
 });
@@ -192,7 +220,7 @@ for (let charge = 3; charge >= 1; charge--) {
 }
 assert.equal(buy(freeze(supplemented), 'belt').state.strength, supplemented.strength + 9);
 const cookies = buy(freeze({ ...initial, energy: 40, money: 1000 }), 'cookies');
-assert.equal(cookies.state.energy, 90);
+assert.equal(cookies.state.energy, 40);
 assert.equal(cookies.state.money, 945);
 assert.equal(cookies.state.fightPrep, 'cookies');
 assert.equal(sanitizeState({ ...initial, buff: { id: 'trenbolone', charges: 1 } }).fightPrep, 'trenbolone');
@@ -214,8 +242,8 @@ assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(geared))), geared);
 
 // Endurance extends both ways a fighter can survive a long exchange.
 assert.equal(fightMaxHp(initial), 100);
-assert.equal(fightMaxHp({ ...initial, endurance: 20 }), 136);
-assert.equal(fightMaxHp({ ...initial, endurance: 80 }), 316);
+assert.equal(fightMaxHp({ ...initial, endurance: 20 }), 124);
+assert.equal(fightMaxHp({ ...initial, endurance: 80 }), 244);
 assert.equal(fightMaxStamina(initial), 86);
 assert.equal(fightMaxStamina({ ...initial, endurance: 80 }), 230);
 assert.ok(fightMaxStamina({ ...initial, endurance: 20 }) > 100);
@@ -245,10 +273,33 @@ assert.equal(trenFight.battle.playerStamina, fightStartingStamina(trenbolone));
 assert.equal(trenFight.state.energy, 0);
 assert.equal(trenFight.state.buff, null);
 const foodFight = beginFight(freeze(cookies.state));
-assert.equal(foodFight.battle.maxStamina, fightMaxStamina(initial) + 18);
+assert.equal(foodFight.battle.maxStamina, 103);
 assert.equal(foodFight.battle.playerStamina, fightStartingStamina(cookies.state));
 assert.equal(foodFight.state.fightPrep, null);
 assert.equal(migrateBattle(sanitizeState(JSON.parse(JSON.stringify(foodFight.state))), JSON.parse(JSON.stringify(foodFight.battle))).maxStamina, foodFight.battle.maxStamina);
+for (const [itemId, fullStamina, tiredStamina, highStamina] of [
+  ['shawarma', 95, 59, 1177],
+  ['cookies', 103, 64, 1284],
+]) {
+  for (const energy of [0, 19, 40, 100]) {
+    const prepared = buy(freeze({ ...initial, energy, money: 1000 }), itemId).state;
+    assert.equal(prepared.energy, energy, 'Food never restores energy');
+    assert.equal(fightMaxStamina(prepared), fullStamina);
+    if (energy < 20) assert.ok(beginFight(prepared).error, 'Food does not bypass the energy requirement');
+    if (energy === 40) assert.equal(fightStartingStamina(prepared), tiredStamina);
+    if (energy === 100) assert.equal(fightStartingStamina(prepared), fullStamina);
+  }
+  const prepared = buy(freeze({ ...initial, endurance: 500, money: 1000 }), itemId).state;
+  const started = beginFight(freeze(sanitizeState(JSON.parse(JSON.stringify(prepared)))));
+  assert.equal(started.battle.maxStamina, highStamina, 'Food scales with endurance');
+  assert.equal(started.battle.playerStamina, highStamina);
+  assert.equal(started.state.energy, 20);
+  assert.equal(started.state.fightPrep, null);
+  assert.equal(fightMaxStamina(started.state), 1070, 'The bonus only applies to one fight');
+  const resumed = migrateBattle(started.state, JSON.parse(JSON.stringify(started.battle)));
+  assert.equal(resumed.maxStamina, highStamina, 'Saved fights retain percentage bonuses at maximum endurance');
+  assert.equal(resumed.playerStamina, highStamina);
+}
 const chalk = buy(freeze({ ...initial, money: 1000 }), 'chalk').state;
 const chalkFight = beginFight(freeze(chalk));
 assert.equal(chalkFight.state.fightPrep, null);
@@ -309,12 +360,25 @@ assert.ok(fightTimingWindow({ ...initial, technique: 80 }, basic.battle) > fight
 assert.ok(fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[5].id }) < fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[2].id }));
 assert.ok(fightTimingWindow(initial, basic.battle) < 0.1, 'Initial timing zone is substantially narrower than the old one');
 assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').staminaDelta, -8, 'Endurance does not change per-turn stamina economics');
-assert.equal(durable.playerMaxHp, 316);
+assert.equal(durable.playerMaxHp, 244);
 const finalState = { ...initial, wins: 11, gym: 3, strength: 80, endurance: 8 };
 assert.equal(fight({ ...finalState, strength: 120 }).battle.result, 'loss', 'Strength alone cannot bypass the final rival with perfect timing');
-assert.equal(fight({ ...finalState, endurance: 20 }).battle.result, 'win', 'Training endurance opens a viable path');
+assert.equal(fight({ ...finalState, endurance: 20 }).battle.result, 'loss', 'The x2 health bonus requires more endurance against the final rival');
+assert.equal(fight({ ...finalState, endurance: 70 }).battle.result, 'win', 'Training endurance opens a viable path');
 assert.ok(fightMovePreview({ ...initial, strength: 120 }, beginFight({ ...initial, strength: 120 }).battle, 'attack').maxDamage < 50,
   'High strength gains taper off');
+
+// HP growth accelerates across the campaign and survives save restoration above 300 HP.
+const rivalHp = RIVALS.map((rival, wins) => beginFight({ ...initial, wins, gym: rival.gym }).battle.enemyMaxHp);
+assert.equal(rivalHp[0], 100);
+assert.equal(rivalHp.at(-1), 381, 'The final rival has 50% more HP than the previous 254');
+const hpSteps = rivalHp.slice(1).map((hp, index) => hp - rivalHp[index]);
+assert.ok(hpSteps.every((step, index) => index === 0 || step >= hpSteps[index - 1]), 'HP increases faster at later levels');
+const finalFight = beginFight(finalState);
+const restoredFinal = migrateBattle(finalFight.state, { ...finalFight.battle, enemyHp: 350 });
+assert.equal(restoredFinal.enemyMaxHp, 381);
+assert.equal(restoredFinal.enemyHp, 350);
+assert.ok(!fightTurn(finalFight.state, restoredFinal, 'attack', 0.5).error, 'A rival above 300 HP remains playable after loading');
 
 // A long fight remains active after ten attacks and can be restored from a save.
 const longState = { ...initial, wins: 11, gym: 3, strength: 1, endurance: 80 };
@@ -342,8 +406,8 @@ assert.equal(migrated.enemyMaxHp, 100);
 assert.equal(migrated.playerMaxHp, 100);
 assert.equal(migrated.maxStamina, 86);
 const fortifiedMigration = migrateBattle({ ...initial, endurance: 20 }, oldSavedBattle);
-assert.equal(fortifiedMigration.playerMaxHp, 136);
-assert.equal(fortifiedMigration.playerHp, 113, 'An active old fight retains damage already taken when endurance adds health');
+assert.equal(fortifiedMigration.playerMaxHp, 124);
+assert.equal(fortifiedMigration.playerHp, 101, 'An active old fight retains damage already taken when endurance adds health');
 assert.equal(fightTurn(initial, oldSavedBattle, 'attack', 0.5).battle.round, 4);
 assert.equal(migrateBattle(initial, { ...oldSavedBattle, rivalId: 'nobody' }), null);
 
@@ -395,9 +459,9 @@ function runCampaign(timings) {
 const novice = runCampaign([0.5, 0]);
 const capable = runCampaign([0.5, 0.5, 0.5, 0]);
 const expert = runCampaign([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0]);
-assert.ok(capable.attempts >= 18 && capable.attempts <= 34, `75% accuracy should mean a substantial but manageable campaign: ${JSON.stringify({attempts:capable.attempts,workouts:capable.state.workouts})}`);
-assert.ok(capable.state.workouts >= 25 && capable.state.workouts <= 44);
-assert.ok(novice.attempts > capable.attempts && novice.attempts < 60, '50% accuracy is harder, not a dead end');
+assert.ok(capable.attempts >= 18 && capable.attempts <= 55, `75% accuracy should mean a substantial but manageable campaign: ${JSON.stringify({attempts:capable.attempts,workouts:capable.state.workouts})}`);
+assert.ok(capable.state.workouts >= 25 && capable.state.workouts <= 86);
+assert.ok(novice.attempts > capable.attempts && novice.attempts < 80, '50% accuracy is harder, not a dead end');
 assert.ok(novice.state.workouts > capable.state.workouts);
 assert.ok(expert.attempts < capable.attempts && expert.state.workouts < capable.state.workouts);
 assert.ok(fightMaxStamina(capable.state) > 100);

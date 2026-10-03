@@ -22,7 +22,7 @@
     </div>
     <main class="game-layout">
       <div class="hero-column"><section class="arena-scene" aria-label="Твой персонаж в качалке">
-        <img id="hero-image" class="hero-image" src="./assets/hero-0.jpg?v=fullbody" alt="Худой новичок в подвальной качалке">
+        <img id="hero-image" class="hero-image" src="./assets/hero-01.jpg?v=fullbody" alt="Худой новичок в подвальной качалке">
         <div class="scene-vignette" aria-hidden="true"></div><div class="scene-noise" aria-hidden="true"></div>
         <div class="scene-top"><span class="live-label" id="player-rank">ПОКА ЕЩЁ ДРИЩ</span></div>
         <div id="floating-gains" class="floating-gains" aria-live="polite"></div>
@@ -34,7 +34,7 @@
         <div class="power-readout"><span class="tiny-label">МОЩЬ <button type="button" class="stat-help" aria-label="Мощь: общий показатель прогресса. В бою урон зависит от силы, окно тайминга от техники, запас сил от выносливости.">?<span class="stat-tooltip" role="tooltip">Общий показатель прогресса. В бою урон зависит от силы, окно тайминга от техники, запас сил от выносливости.</span></button></span><div><strong id="power-value">9</strong><span id="power-next">/ 9 у соперника</span></div></div>
         <div id="stats" class="stats"><div class="stat"><div><span>Сила</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div><div class="stat"><div><span>Техника</span><strong>6</strong></div><div class="stat-track"><i style="width:6%"></i></div></div><div class="stat"><div><span>Выносливость</span><strong>8</strong></div><div class="stat-track"><i style="width:8%"></i></div></div></div>
         <div class="energy-box"><div><span>Энергия <button type="button" class="stat-help" aria-label="Энергия: тратится на тренировки и подработку. До 80 единиц вкладываются в начальный запас сил перед борьбой; максимум зависит от выносливости.">?<span class="stat-tooltip" role="tooltip">Тратится на тренировки и подработку. До 80 единиц вкладываются в начальный запас сил перед борьбой; максимум зависит от выносливости.</span></button></span><strong id="energy-value">100 / 100</strong></div><div class="energy-track"><i id="energy-bar" style="width:100%"></i><b id="energy-change-segment"></b></div></div>
-        <div class="hidden-state" aria-hidden="true"><span id="rank-description"></span><span id="energy-hint"></span><span id="equipment"></span><span id="respect"></span></div>
+        <div class="hidden-state" aria-hidden="true"><span id="rank-description"></span><span id="energy-hint"></span><span id="equipment"></span></div>
       </aside></div>
       <section class="actions-panel" aria-label="Действия">
         <div class="tabbar" role="tablist" aria-label="Меню игры"><button class="tab active" id="tab-gym" role="tab" aria-selected="true" aria-controls="action-content" data-tab="gym">КАЧАТЬСЯ</button><button class="tab" id="tab-fight" role="tab" aria-selected="false" aria-controls="action-content" data-tab="fight">БОРЬБА</button><button class="tab" id="tab-shop" role="tab" aria-selected="false" aria-controls="action-content" data-tab="shop">ЛАВКА</button><button class="tab" id="tab-road" role="tab" aria-selected="false" aria-controls="action-content" data-tab="road">ПУТЬ</button></div>

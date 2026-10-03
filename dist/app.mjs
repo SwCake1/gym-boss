@@ -1,4 +1,4 @@
-import {GYMS,RIVALS,SHOP,MAX_GEAR_LEVEL,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,workPayout,WORK_THROWS,buy,gearCost,beginFight,fightTurn,forfeitFight,defeatPenalty,fightTimingWindow,fightMovePreview,fightMaxHp,fightMaxStamina,fightStartingStamina,migrateBattle,advanceRandomEvent} from './engine.mjs';
+import {GYMS,RIVALS,SHOP,FIGHT_TIMING_SPEED_MULTIPLIER,MAX_GEAR_LEVEL,HERO_FORMS,physiquePower,heroStage,heroEvolution,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,workPayout,WORK_THROWS,buy,gearCost,beginFight,fightTurn,forfeitFight,defeatPenalty,fightTimingWindow,fightMovePreview,fightMaxHp,fightMaxStamina,fightStartingStamina,migrateBattle,advanceRandomEvent} from './engine.mjs';
 import {mountTowelGame} from './towel.mjs';
 import {trackNewGame,trackProgress} from './metrica.mjs';
 
@@ -20,10 +20,11 @@ const statHints={
   endurance:[
     ['В бою','Выносливость увеличивает здоровье и запас сил, чтобы пережить больше ответных ударов. Больше энергии перед боем — больше сил на старте.'],
     ['На тренировке','Чем выше выносливость, тем уже нужный диапазон пульса и тем быстрее он падает.'],
-    ['Усиление','Еда добавляет запас сил на следующий бой.'],
+    ['Усиление','Шаурма увеличивает запас сил на 10%, печеньки с молочком — на 20% на следующий бой. Еда не восстанавливает энергию.'],
   ],
   power:[
     ['Для чего','Общий показатель для сравнения с соперником. Сильнее всего на него влияет сила, затем техника и выносливость.'],
+    ['Внешность','12 форм открываются с ростом постоянной мощи от характеристик. Временный усилитель для боя на внешность не влияет.'],
     ['В бою','Урон, ширина зоны и запас сил зависят от соответствующих характеристик.'],
   ],
   energy:[
@@ -45,8 +46,8 @@ const rivalSpriteStyle=p=>`--sprite-image:url('./assets/rivals-${Math.floor(p/4)
 const fightSpriteStyle=rivalSpriteStyle;
 const rivalPortraitButton=r=>`<button type="button" class="rival-portrait portrait-trigger" data-rival-image="${r.id}" style="${rivalSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"></button>`;
 const shopSpriteStyle=id=>{const art={cookies:'shop-cookies.jpg',trenbolone:'shop-trenbolone.jpg',chalk:'shop-chalk.webp'}[id];if(art)return `background-image:url('./assets/${art}');background-position:center;background-size:cover`;const p=['shawarma','protein','serum','wraps','shoes','belt'].indexOf(id);return `background-position:${p%3*50}% ${p<3?'0%':'100%'}`;};
-const heroStage=s=>s.won?3:Math.min(3,Math.max(s.gym,Math.floor(s.workouts/15)));
-const heroPath=s=>`./assets/hero-${heroStage(s)}.jpg?v=fullbody`;
+const heroFormPath=stage=>`./assets/${HERO_FORMS[stage].image}?v=fullbody`;
+const heroPath=s=>heroFormPath(heroStage(s));
 const statKeys=Object.keys(stats);
 const shopById=new Map(SHOP.map(item=>[item.id,item]));
 function loadoutNames(character){
@@ -56,12 +57,13 @@ function loadoutNames(character){
   return names;
 }
 let state=createState(),battle=null,tab='gym',sound=true,audio=null,modalKind=null,cleanup=null,working=false,saveFailed=false,tickFrame=0,roundLock=false,saved=false,recentGains=null,recentTrainingKind=null,gainsTimer=0,heroGainsTimer=0;
+let pendingEvolution=null;
 try{const raw=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(raw?.state){state=sanitizeState(raw.state);saved=true;if(typeof raw.sound==='boolean')sound=raw.sound;battle=migrateBattle(state,raw.battle);}}catch{saved=false;}
 
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({state,battle:battle&&!battle.finished?battle:null,sound}));saveFailed=false;}catch{saveFailed=true;}const el=$('save-status');if(el){el.textContent=saveFailed?'Сохранение недоступно в этом браузере':'Прогресс сохранён в этом браузере';el.classList.toggle('save-warning',saveFailed);}}
 function tone(kind='tap'){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')void audio.resume();const freqs=kind==='win'?[220,330,440,660]:kind==='perfect'?[440,660]:kind==='hit'?[85,55]:kind==='error'?[160,120]:[260];freqs.forEach((f,i)=>{const osc=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+i*.085;osc.type=kind==='hit'?'triangle':'sine';osc.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.055,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+.17);osc.connect(g);g.connect(audio.destination);osc.start(t);osc.stop(t+.2);});}catch{sound=false;}}
 function toast(message,error=false){const el=document.createElement('div');el.className=`toast${error?' error':''}`;el.textContent=message;$('toasts').append(el);setTimeout(()=>el.remove(),4400);if(error)tone('error');}
-function apply(result,{quiet=false,heroGains=false,trainingKind=null,eventEligible=false}={}){if(result.error){toast(result.error,true);return false;}const oldAchievements=new Set(state.achievements),before=state;const randomEvent=eventEligible?advanceRandomEvent(result.state):null;state=randomEvent?.state??result.state;const gains=Object.fromEntries([...statKeys,'energy'].map(k=>[k,state[k]-before[k]]).filter(([,gain])=>gain!==0));persist();if(Object.keys(gains).length)gainsPop(gains,heroGains&&!randomEvent?.event,trainingKind);else render();if(!quiet&&result.message)toast(result.message);for(const id of state.achievements){if(!oldAchievements.has(id)){const a=achievements.find(x=>x[0]===id);setTimeout(()=>toast(`Достижение: ${a?.[1]??id}`),500);}}if(randomEvent?.event)showRandomEvent(randomEvent);return true;}
+function apply(result,{quiet=false,heroGains=false,trainingKind=null,eventEligible=false}={}){if(result.error){toast(result.error,true);return false;}const oldAchievements=new Set(state.achievements),before=state;const randomEvent=eventEligible?advanceRandomEvent(result.state):null;state=randomEvent?.state??result.state;const gains=Object.fromEntries([...statKeys,'energy'].map(k=>[k,state[k]-before[k]]).filter(([,gain])=>gain!==0));persist();if(Object.keys(gains).length)gainsPop(gains,heroGains&&!randomEvent?.event,trainingKind);else render();if(!quiet&&result.message)toast(result.message);for(const id of state.achievements){if(!oldAchievements.has(id)){const a=achievements.find(x=>x[0]===id);setTimeout(()=>toast(`Достижение: ${a?.[1]??id}`),500);}}pendingEvolution=heroEvolution(before,state);if(randomEvent?.event)showRandomEvent(randomEvent);else showPendingEvolution();return true;}
 function gainsPop(gains,heroGains=false,trainingKind=null){
   recentGains=gains;
   recentTrainingKind=trainingKind;
@@ -116,7 +118,6 @@ function renderHeader(rank,rival){
   $('chapter-label').textContent=`ГЛАВА ${String(state.gym+1).padStart(2,'0')} / 04`;
   $('gym-name').textContent=state.won?'Твоя империя железа':state.gym===0?'Подвал потных надежд':GYMS[state.gym].name;
   $('money').innerHTML=`${state.money.toLocaleString('ru-RU')} <span>₽</span>`;
-  $('respect').innerHTML=`${state.respect} <span>REP</span>`;
   $('player-rank').textContent=state.won?'БОСС КАЧАЛКИ':rank.name.replace('<br>',' ');
   $('rank-description').textContent=state.won?'Ты пришёл. Поднял. Возглавил.':rank.desc;
   $('power-value').textContent=power(state);
@@ -155,14 +156,15 @@ function renderLoadout(){
 }
 function renderHero(stage,rank){
   const hero=$('hero-image');
-  if(!hero.src.endsWith(`hero-${stage}.jpg?v=fullbody`)){
+  if(hero.getAttribute('src')!==heroFormPath(stage)){
     hero.src=heroPath(state);
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)hero.animate([{opacity:.3},{opacity:1}],{duration:700});
   }
-  hero.alt=['Худой новичок в качалке','Подтянутый атлет','Огромный мускулистый спортсмен','Гипертрофированный чемпион качалки'][stage];
+  hero.alt=`${HERO_FORMS[stage].name} — форма ${stage+1} из ${HERO_FORMS.length}`;
   $('hero-name').innerHTML=state.won?'ТЫ — БОСС.<br><em>БЕЗ БАЗАРА.</em>':rank.headline;
   $('hero-quote').textContent=rank.quote;
-  $('evolution-strip').innerHTML=['ДРИЩ','АТЛЕТ','МАШИНА','БОСС'].map((name,i)=>`${i?'<i></i>':''}<span class="${i<=stage?'active':''}">${name}</span>`).join('');
+  const next=HERO_FORMS[stage+1];
+  $('evolution-strip').innerHTML=`<div class="form-progress-copy"><strong>ФОРМА ${stage+1} / ${HERO_FORMS.length}</strong><span>${next?`ДО СЛЕДУЮЩЕЙ: ${next.power-physiquePower(state)} МОЩИ`:'МАКСИМАЛЬНАЯ ФОРМА'}</span></div><div class="form-progress-steps" aria-label="${stage+1} из ${HERO_FORMS.length} форм">${HERO_FORMS.map((form,i)=>`<i class="${i<=stage?'active':''} ${i===stage?'current':''}" title="${esc(form.name)} · ${form.power} мощи" aria-hidden="true"></i>`).join('')}</div>`;
 }
 const tabMarkup={gym:gymMarkup,fight:fightMarkup,shop:shopMarkup,road:roadMarkup};
 function renderActions(){
@@ -188,7 +190,7 @@ function renderFooter(){
   $('sound-toggle').innerHTML=soundIcon(sound);
 }
 function render(){
-  const stage=heroStage(state),rank=ranks[stage],rival=nextRival(state);
+  const stage=heroStage(state),rank={...ranks[HERO_FORMS[stage].rank],name:HERO_FORMS[stage].name.toUpperCase()},rival=nextRival(state);
   renderHeader(rank,rival);
   renderStats();
   renderFormulaHints();
@@ -201,9 +203,20 @@ function render(){
 }
 
 function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.indexOf(r)>state.wins)return;const dialog=document.createElement('dialog');dialog.className='portrait-dialog';dialog.setAttribute('aria-label',`Фото ${r.name}`);dialog.innerHTML=`<div class="portrait-dialog-body"><button type="button" class="close-button portrait-close" aria-label="Закрыть фото">×</button><div class="portrait-art" style="${rivalSpriteStyle(r.portrait)}" role="img" aria-label="${esc(r.name)}"></div><h2>${esc(r.name)}</h2><p>${esc(r.title)}</p></div>`;document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.querySelector('.portrait-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});dialog.showModal();}
-function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;$('game-dialog').close();document.querySelector('.arena-scene').classList.remove('scene-training');}
+function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;document.querySelector('.arena-scene').classList.remove('scene-training');if(showPendingEvolution(true))return;$('game-dialog').close();}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;const dialog=$('game-dialog');dialog.classList.remove('keyboard-focus');$('dialog-content').innerHTML=html;if(!dialog.open)dialog.showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
+function showPendingEvolution(afterClose=false){
+  if(!pendingEvolution||(!afterClose&&$('game-dialog').open))return false;
+  const evolution=pendingEvolution;
+  pendingEvolution=null;
+  const {from,to,beforePower,afterPower}=evolution;
+  const portrait=(stage,label,value)=>`<figure class="evolution-portrait"><figcaption>${label}<span>ФОРМА ${stage+1} / ${HERO_FORMS.length}</span></figcaption><img src="${heroFormPath(stage)}" alt="${esc(HERO_FORMS[stage].name)} — ${label.toLowerCase()}"><div><strong>${esc(HERO_FORMS[stage].name)}</strong><span>${value} мощи</span></div></figure>`;
+  modal(`<div class="dialog-body evolution-dialog">${modalTop('НОВАЯ ФОРМА')}<h2 id="dialog-title">ТЫ СТАЛ СИЛЬНЕЕ!</h2><p class="dialog-copy">Каждый подход меняет тебя. Посмотри, как ты вырос.</p><div class="evolution-comparison">${portrait(from,'БЫЛО',beforePower)}<span class="evolution-arrow" aria-hidden="true">→</span>${portrait(to,'СТАЛО',afterPower)}</div><button class="primary-button" data-close>ПРОДОЛЖИТЬ КАЧАТЬСЯ <span>↗</span></button></div>`,'evolution');
+  $('dialog-content').querySelector('.primary-button').focus({preventScroll:true});
+  tone('win');
+  return true;
+}
 function showRandomEvent({event,change}){
   const index=Number(event.id.slice(1))-1,cell=index%15;
   const art=`background-image:url('./assets/events-${Math.floor(index/15)}.webp?v=seam-fix');background-position:${cell%5*25}% ${Math.floor(cell/5)*50}%`;
@@ -212,7 +225,7 @@ function showRandomEvent({event,change}){
   modal(`<div class="dialog-body random-event-dialog">${modalTop('СЛУЧАЙНОЕ СОБЫТИЕ',false)}<div class="random-event-art" style="${art}" role="img" aria-label="Иллюстрация к событию: ${esc(event.text)}"></div><h2 id="dialog-title">ВОТ ТАК ПОВОРОТ.</h2><p class="dialog-copy">${esc(event.text)}</p><div class="random-event-effect ${change<0?'negative':'positive'}"><span>ЭФФЕКТ</span><strong>${effect}</strong></div><button class="primary-button" data-close>ПРОДОЛЖИТЬ <span>↗</span></button></div>`,'random-event');
   tone(change<0?'hit':'perfect');
 }
-function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост. Сила ускоряет жим и сужает его зону; техника сокращает время ответа в захвате; выносливость сужает диапазон пульса и ускоряет его спад. Зал и число тренировок на сложность не влияют.</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай по полю: вещи пружинят и сталкиваются, энергия возвращается без штрафов. На подработке замахнись и брось полотенце в корзину: ветер, скамья, груша и шкафчики мешают. За смену платят 20 ₽ плюс 15 ₽ за каждое из трёх попаданий. В каждом следующем зале попадание приносит ещё на 5 ₽ больше. Подработка всегда стоит 12 энергии.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики. В лавке можно выбрать одну подготовку на следующий бой: еду для запаса сил, магнезию для широкой зоны или усилитель силы. Экипировка улучшается до третьего уровня по мере открытия залов. За поражение и сдачу списывается 20 ₽ в Подвале, затем на 10 ₽ больше в каждом зале, но не больше наличных. Без денег можно снова выйти на ковёр.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
+function help(){modal(`<div class="dialog-body">${modalTop('ПРАВИЛА ПОДВАЛА')}<h2 id="dialog-title">СЛУШАЙ СЮДА, НОВЕНЬКИЙ.</h2><ol class="help-list"><li><strong>Тренируйся.</strong> В «Качаться» удерживай вес и отпускай в зелёной зоне. В школе захвата нажимай показанную стрелку. В кардио поддерживай пульс, нажимая в своём темпе. Чем лучше сыграешь, тем больше прирост. Сила ускоряет жим и сужает его зону; техника сокращает время ответа в захвате; выносливость сужает диапазон пульса и ускоряет его спад. Зал и число тренировок на сложность не влияют. Внешность меняется с ростом постоянной мощи: всего 12 форм. При новой форме увидишь сравнение «было — стало».</li><li><strong>Восстанавливайся и зарабатывай.</strong> На отдыхе нажимай по полю: вещи пружинят и сталкиваются, энергия возвращается без штрафов. На подработке замахнись и брось полотенце в корзину: ветер, скамья, груша и шкафчики мешают. За смену платят 20 ₽ плюс 15 ₽ за каждое из трёх попаданий. В каждом следующем зале попадание приносит ещё на 5 ₽ больше. Подработка всегда стоит 12 энергии.</li><li><strong>Атакуй в ритм.</strong> На ковре одна кнопка — «Атаковать». Нажми её или пробел, когда бегунок в зелёной зоне. Сила определяет урон, техника расширяет зону, выносливость увеличивает запас сил. Центр зоны даёт 100% урона, средняя часть — ⅔, края — ⅓. Вне зоны атака не наносит урон.</li><li><strong>Готовься к бою.</strong> Часть энергии перед схваткой становится запасом сил. У поздних соперников зона тайминга уже и удары сильнее. Тренируй все три характеристики. В лавке можно выбрать одну подготовку на следующий бой: еду для запаса сил, магнезию для широкой зоны или усилитель силы. Экипировка улучшается до третьего уровня по мере открытия залов. За поражение и сдачу списывается 20 ₽ в Подвале, затем на 10 ₽ больше в каждом зале, но не больше наличных. Без денег можно снова выйти на ковёр.</li><li><strong>Забери трон.</strong> Четыре зала, 12 соперников, финальный Гигабатя. Прохождение рассчитано примерно на 20–30 минут.</li></ol><p class="dialog-copy">Прогресс автоматически остаётся в этом браузере. Кнопка ♪ включает короткие сигналы действий и побед. Схватку можно продолжить после перезагрузки.</p><button class="primary-button" data-close>ПОНЯЛ. ПОШЁЛ КАЧАТЬСЯ. <span>↗</span></button></div>`);}
 function showAchievements(){modal(`<div class="dialog-body">${modalTop('ТВОЙ ШКАФ С КУБКАМИ')}<h2 id="dialog-title">ЗАСЛУГИ ПЕРЕД ЖЕЛЕЗОМ.</h2><div class="achievement-list">${achievements.map(([id,name,desc])=>`<div class="achievement-item ${state.achievements.includes(id)?'':'locked'}">${state.achievements.includes(id)?'✓':'○'} ${name}<small>${desc}</small></div>`).join('')}</div></div>`);}
 
 function trainingShell(kind,game){
@@ -526,7 +539,7 @@ function fightView(message=''){
   $('dialog-content').querySelector('[data-move="attack"]')?.focus({preventScroll:true});
   const started=performance.now(),period=r.timingPeriod;
   let stop=false;
-  const frame=()=>{if(stop)return;const marker=$('fight-marker');if(marker)marker.style.left=`${(1-Math.cos((performance.now()-started)/period))*50}%`;tickFrame=requestAnimationFrame(frame);};
+  const frame=()=>{if(stop)return;const marker=$('fight-marker');if(marker)marker.style.left=`${(1-Math.cos((performance.now()-started)*FIGHT_TIMING_SPEED_MULTIPLIER/period))*50}%`;tickFrame=requestAnimationFrame(frame);};
   cleanup=()=>{stop=true;cancelAnimationFrame(tickFrame);};tickFrame=requestAnimationFrame(frame);
 }
 function makeMove(move){
@@ -595,7 +608,7 @@ function playVictoryMusic(restart=false){
 for(const event of ['play','pause','ended'])victoryTrack.addEventListener(event,()=>updateVictoryMusic());
 victoryTrack.addEventListener('error',()=>updateVictoryMusic('Не удалось загрузить песню.'));
 function showVictory(){
-  modal(`<div class="dialog-body victory-screen">${modalTop('ВСЕ 12 СОПЕРНИКОВ ПОБЕЖДЕНЫ')}<h2 id="dialog-title" class="victory-heading">BOSS OF THIS GYM.</h2><div class="victory-music"><button type="button" id="victory-music-toggle" class="victory-music-button" aria-pressed="false">♫ ВКЛЮЧИТЬ ПЕСНЮ</button><p id="victory-music-status" role="status">Саундтрек победы</p></div><div class="victory-scene"><img class="victory-photo" src="./assets/victory-scene.jpg" alt="Ты стоишь перед золотым троном; качки вокруг восхищаются, кланяются и завидуют"></div><p class="dialog-copy" style="text-align:center">Когда-то тебя здесь звали «эй». Теперь весь зал знает твоё имя.<br><strong>Гигабатя отдаёт тебе трон. И ключ от раздевалки.</strong></p><div class="result-stats"><div><strong>${state.workouts}</strong><span>подходов</span></div><div><strong>${Math.max(1,Math.round(state.playSeconds/60))} мин</strong><span>до легенды</span></div><div><strong>${state.respect}</strong><span>уважения</span></div></div><button class="primary-button" data-close>ОСТАТЬСЯ В СВОЁМ ЗАЛЕ <span>♛</span></button><p class="muted" style="text-align:center;margin-top:16px">Блины после себя всё равно убери.</p></div>`,'victory');
+  modal(`<div class="dialog-body victory-screen">${modalTop('ВСЕ 12 СОПЕРНИКОВ ПОБЕЖДЕНЫ')}<h2 id="dialog-title" class="victory-heading">BOSS OF THIS GYM.</h2><div class="victory-music"><button type="button" id="victory-music-toggle" class="victory-music-button" aria-pressed="false">♫ ВКЛЮЧИТЬ ПЕСНЮ</button><p id="victory-music-status" role="status">Саундтрек победы</p></div><div class="victory-scene"><img class="victory-photo" src="./assets/victory-scene.jpg" alt="Ты стоишь перед золотым троном; качки вокруг восхищаются, кланяются и завидуют"></div><p class="dialog-copy" style="text-align:center">Когда-то тебя здесь звали «эй». Теперь весь зал знает твоё имя.<br><strong>Гигабатя отдаёт тебе трон. И ключ от раздевалки.</strong></p><div class="result-stats"><div><strong>${state.workouts}</strong><span>подходов</span></div><div><strong>${Math.max(1,Math.round(state.playSeconds/60))} мин</strong><span>до легенды</span></div></div><button class="primary-button" data-close>ОСТАТЬСЯ В СВОЁМ ЗАЛЕ <span>♛</span></button><p class="muted" style="text-align:center;margin-top:16px">Блины после себя всё равно убери.</p></div>`,'victory');
   tone('win');
   confetti(70,true);
   const celebrationTimer=matchMedia('(prefers-reduced-motion: reduce)').matches?0:setInterval(()=>confetti(16,true),1800);
@@ -614,6 +627,7 @@ document.addEventListener('keydown',ev=>{if(ev.code!=='Space'||modalKind!=='figh
 function resetGame(){
   cleanup?.();
   battle=null;
+  pendingEvolution=null;
   clearTimeout(gainsTimer);
   clearTimeout(heroGainsTimer);
   $('floating-gains').textContent='';
@@ -658,7 +672,11 @@ function handleClick(ev){
   if(b.dataset.tab){tab=b.dataset.tab;render();tone();return;}
   if(b.dataset.train){startTraining(b.dataset.train);return;}
   if(b.dataset.buy){if(apply(buy(state,b.dataset.buy)))tone('perfect');return;}
-  if(b.dataset.move){makeMove(b.dataset.move);return;}
+  if(b.dataset.move){
+    // Pointer input attacks on contact; clicks remain for keyboard/assistive activation.
+    if(ev.detail===0)makeMove(b.dataset.move);
+    return;
+  }
   switch(b.id){
     case 'rest-button': startRestGame();break;
     case 'work-button': startWorkGame();break;
@@ -676,6 +694,12 @@ function handleClick(ev){
   }
 }
 document.addEventListener('click',handleClick);
+document.addEventListener('pointerdown',ev=>{
+  const button=ev.target.closest?.('[data-move]');
+  if(!button||button.disabled||!ev.isPrimary||ev.button!==0)return;
+  ev.preventDefault();
+  makeMove(button.dataset.move);
+});
 document.addEventListener('keydown',ev=>{if(ev.key==='Tab')ev.target.closest?.('dialog[open]')?.classList.add('keyboard-focus');},true);
 document.addEventListener('pointerdown',ev=>{ev.target.closest?.('dialog')?.classList.remove('keyboard-focus');},true);
 let fightEscapePending=false;
@@ -704,7 +728,7 @@ document.querySelector('.tabbar').addEventListener('keydown',ev=>{if(!['ArrowLef
 let lastTick=Date.now();setInterval(()=>{const now=Date.now();if(!document.hidden&&!state.won){state={...state,playSeconds:state.playSeconds+Math.min(10,Math.round((now-lastTick)/1000))};persist();}lastTick=now;},5000);
 document.addEventListener('visibilitychange',()=>{lastTick=Date.now();persist();});window.addEventListener('pagehide',persist);
 render();persist();if(!saved)trackNewGame();if(battle)fightView('Схватка продолжается. Соперник дождался.');else if(!saved)setTimeout(()=>toast('Начни с тренировки «Качаться». Лови зелёную зону — и расти.'),900);
-setTimeout(()=>{const img=new Image();img.src=`./assets/hero-${Math.min(3,heroStage(state)+1)}.jpg?v=fullbody`;},2500);
+setTimeout(()=>{const img=new Image();img.src=heroFormPath(Math.min(HERO_FORMS.length-1,heroStage(state)+1));},2500);
 
 const context=document.modelContext;
 if(context?.registerTool){const controller=new AbortController();const tools=[{name:'get_gym_progress',title:'Прогресс в GYM BOSS',description:'Read the current character stats, resources, next opponent and campaign progress.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:async input=>{if(input&&Object.keys(input).length)throw new Error('No arguments expected');return {gym:GYMS[state.gym].name,wins:state.wins,power:power(state),energy:state.energy,money:state.money,stats:Object.fromEntries(Object.keys(stats).map(k=>[k,state[k]])),nextRival:nextRival(state)?.name??null,won:state.won};}},{name:'open_gym_section',title:'Открыть раздел игры',description:'Open training, wrestling, equipment shop or opponent progression without completing an action.',inputSchema:{type:'object',properties:{section:{type:'string',enum:['gym','fight','shop','road']}},required:['section'],additionalProperties:false},annotations:{readOnlyHint:false},execute:async input=>{if(!input||Object.keys(input).some(k=>k!=='section')||!['gym','fight','shop','road'].includes(input.section))throw new Error('Expected section: gym, fight, shop, or road');if(modalKind)throw new Error('Close the current activity first');tab=input.section;render();return {section:tab};}}];for(const tool of tools){try{void Promise.resolve(context.registerTool(tool,{signal:controller.signal})).catch(()=>{});}catch{}}window.addEventListener('pagehide',()=>controller.abort(),{once:true});}

@@ -564,6 +564,10 @@ dialog:not(.keyboard-focus) :focus-visible{outline:none}
 @media(max-width:400px){.fight-scene.fight-stage{height:218px}.fight-round{font-size:9px}}
 @media(max-height:720px) and (min-width:641px){.fight-scene.fight-stage{height:230px}.fight-screen{padding-top:17px;padding-bottom:16px}.fight-control{padding-top:10px;padding-bottom:10px}}
 
+/* Keep gameplay taps from zooming or selecting text while allowing dialog scrolling. */
+#game-dialog:has(.training-dialog),#game-dialog:has(.fight-screen){touch-action:pan-x pan-y}
+.training-dialog,.training-dialog *,.fight-screen,.fight-screen *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+
 /* On phones the live control is the main event; the training clip becomes a small corner visual. */
 @media(max-width:640px){
   #game-dialog:has(.training-dialog),#game-dialog:has(.fight-screen){width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
@@ -656,4 +660,40 @@ dialog:not(.keyboard-focus) :focus-visible{outline:none}
   .work-game .dialog-copy{margin:8px 0 11px;font-size:12px;line-height:1.35}
   .work-game .towel-controls{margin-top:9px}
   .work-game .utility-game-status{margin-top:7px}
+}
+
+/* Twelve power-based forms and the before/after milestone dialog. */
+.evolution-strip{display:block}
+.form-progress-copy{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}
+.form-progress-copy strong{font-size:11px;letter-spacing:1px;color:var(--cyan)}
+.form-progress-copy span{font-size:10px;letter-spacing:.5px;text-align:right;color:var(--muted)}
+.form-progress-steps{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:5px}
+.evolution-strip .form-progress-steps i{display:block;width:auto;flex:none;height:4px;background:#ffffff20;margin:0}
+.evolution-strip .form-progress-steps i.active{background:var(--cyan)}
+.evolution-strip .form-progress-steps i.current{background:var(--gold)}
+#game-dialog:has(.evolution-dialog){width:min(700px,calc(100% - 24px))}
+.evolution-dialog h2{font-size:clamp(27px,4.8vw,42px);color:var(--gold);text-align:center}
+.evolution-dialog>.dialog-copy{text-align:center;line-height:1.45;margin-bottom:20px}
+.evolution-comparison{display:grid;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);align-items:center;gap:12px;margin:0 0 24px}
+.evolution-portrait{margin:0;min-width:0;border:1px solid var(--line);background:#101e1b}
+.evolution-portrait:last-child{border-color:var(--gold)}
+.evolution-portrait figcaption{display:flex;justify-content:space-between;gap:6px;padding:11px 12px;font-size:12px;letter-spacing:1px;color:var(--muted)}
+.evolution-portrait figcaption span{font-size:10px;letter-spacing:.4px}
+.evolution-portrait:last-child figcaption{color:var(--gold)}
+.evolution-portrait img{display:block;width:100%;height:min(42dvh,360px);object-fit:contain;background:#0b1216}
+.evolution-portrait>div{display:flex;flex-direction:column;gap:4px;padding:11px 12px}
+.evolution-portrait strong{font-size:17px}
+.evolution-portrait>div>span{font-size:12px;color:var(--muted)}
+.evolution-arrow{font-size:25px;color:var(--gold);text-align:center}
+@media(max-width:520px){
+  .form-progress-copy{gap:6px}
+  .form-progress-copy strong,.form-progress-copy span{font-size:9px;letter-spacing:.3px}
+  .form-progress-steps{gap:4px}
+  .evolution-dialog{padding:18px 14px}
+  .evolution-dialog>.dialog-copy{font-size:13px;margin-bottom:14px}
+  .evolution-comparison{grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr);gap:6px;margin-bottom:16px}
+  .evolution-portrait figcaption{flex-direction:column;padding:8px;font-size:11px}
+  .evolution-portrait>div{padding:9px 8px}
+  .evolution-portrait strong{font-size:14px}
+  .evolution-arrow{font-size:19px}
 }
