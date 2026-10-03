@@ -18,7 +18,7 @@ export const RIVALS = Object.freeze([
   { id: 'rival-09', name: 'Архижим', title: 'Верховный хранитель блинов', quote: 'Во имя жима, тяги и святого приседа.', winQuote: 'Храм признаёт тебя. Полотенце сдай.', power: 53, gym: 2, portrait: 8, reward: 250, timingPeriod: 500, timingBaseWindow: 0.076 },
   { id: 'rival-10', name: 'Атлант На Массе', title: 'Держит небо на трапециях', quote: 'Небо лёгкое. Просто повторений много.', winQuote: 'Подержи секунду небо. Я попью.', power: 61, gym: 3, portrait: 9, reward: 300, timingPeriod: 620, timingBaseWindow: 0.064 },
   { id: 'rival-11', name: 'Зевс Протеинович', title: 'Гром среди ясного жима', quote: 'Это не молния. Это предтрен пошёл.', winQuote: 'Даже гром сегодня жмёт тише.', power: 71, gym: 3, portrait: 10, reward: 350, timingPeriod: 470, timingBaseWindow: 0.086 },
-  { id: 'rival-12', name: 'ГИГАБАТЯ', title: 'Финальный босс качалки', quote: 'Я не занимаю тренажёр. Я и есть тренажёр.', winQuote: 'Теперь ты — босс. Только за собой блины убери.', power: 84, gym: 3, portrait: 11, reward: 500, timingPeriod: 570, timingBaseWindow: 0.061 },
+  { id: 'rival-12', name: 'ГИГАБАТЯ', title: 'Финальный босс качалки', quote: 'Я не занимаю тренажёр. Я и есть тренажёр.', winQuote: 'Теперь ты — босс. Только за собой блины убери.', power: 84, damage: 20, gym: 3, portrait: 11, reward: 500, timingPeriod: 500, timingBaseWindow: 0.061 },
 ]);
 
 export const SHOP = Object.freeze([
@@ -334,8 +334,8 @@ function attackDamage(strength) {
   return Math.round(clamp(9 + Math.min(strength, 60) * 0.34 + Math.max(0, strength - 60) * 0.12, 1, 80));
 }
 
-function counterDamage(rival) {
-  return Math.round(8 + rival.power * 0.13);
+export function counterDamage(rival) {
+  return rival.damage ?? Math.round(8 + rival.power * 0.13);
 }
 
 // Previous saves contain the old three-move fight shape. Preserve their HP and
