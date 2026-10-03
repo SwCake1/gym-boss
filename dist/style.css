@@ -279,6 +279,8 @@
 /* Portrait buttons reveal the full square crop without interrupting the fight. */
 .portrait-trigger{position:relative;display:block;padding:0;cursor:zoom-in}
 .portrait-trigger:hover{border-color:var(--cyan);filter:brightness(1.13)}
+.arena-scene .hero-portrait-trigger{position:absolute;inset:0;z-index:2;width:100%;height:100%;border:0;background:transparent}
+.hero-portrait-trigger:focus-visible{outline:2px solid var(--cyan);outline-offset:-4px}
 /* Size each square atlas from the frame height, then crop the sides without stretching it. */
 .rival-portrait,.portrait-art{position:relative;overflow:hidden}
 .rival-portrait::before,.portrait-art::before,.fighter-image.enemy::before{content:'';position:absolute;left:50%;top:var(--sprite-top);bottom:var(--sprite-bottom);height:var(--sprite-height);aspect-ratio:1;background:var(--sprite-image) center/100% 100% no-repeat;transform:translateX(var(--sprite-x));pointer-events:none}
@@ -291,7 +293,8 @@
 .portrait-dialog{width:min(580px,calc(100% - 28px));max-height:92dvh}
 .portrait-dialog-body{position:relative;padding:20px 20px 24px;text-align:center}
 .portrait-close{position:absolute;right:28px;top:28px;z-index:2;background:#142528d9;color:#fff}
-.portrait-art{width:min(100%,520px);aspect-ratio:1;margin:auto;border:1px solid #647d72;border-radius:4px;background-color:#142226;background-size:200% 200%;background-repeat:no-repeat}
+.portrait-art,.hero-portrait-art{width:min(100%,520px);aspect-ratio:1;margin:auto;border:1px solid #647d72;border-radius:4px;background-color:#142226;background-size:200% 200%;background-repeat:no-repeat}
+.hero-portrait-art{display:block;object-fit:contain}
 .portrait-dialog h2{font-size:32px;margin-top:17px}
 .portrait-dialog p{color:var(--muted);font-size:15px;margin-top:5px}
 

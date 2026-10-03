@@ -285,7 +285,26 @@ function renderTheme(){
   document.querySelector('meta[name="theme-color"]').content=THEME_BACKGROUNDS[theme];
 }
 
-function showRivalPortrait(id){const r=RIVALS.find(x=>x.id===id);if(!r||RIVALS.indexOf(r)>state.wins)return;const dialog=document.createElement('dialog');dialog.className='portrait-dialog';dialog.setAttribute('aria-label',`Фото ${r.name}`);dialog.innerHTML=`<div class="portrait-dialog-body"><button type="button" class="close-button portrait-close" aria-label="Закрыть фото">×</button><div class="portrait-art" style="${rivalSpriteStyle(r.portrait)}" role="img" aria-label="${esc(r.name)}"></div><h2>${esc(r.name)}</h2><p>${esc(r.title)}</p></div>`;document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.querySelector('.portrait-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});dialog.showModal();}
+function showPortrait(art,name,description){
+  const dialog=document.createElement('dialog');
+  dialog.className='portrait-dialog';
+  dialog.setAttribute('aria-label',`Фото ${name}`);
+  dialog.innerHTML=`<div class="portrait-dialog-body"><button type="button" class="close-button portrait-close" aria-label="Закрыть фото">×</button>${art}<h2>${esc(name)}</h2><p>${esc(description)}</p></div>`;
+  document.body.append(dialog);
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+  dialog.querySelector('.portrait-close').addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+  dialog.showModal();
+}
+function showRivalPortrait(id){
+  const r=RIVALS.find(x=>x.id===id);
+  if(!r||RIVALS.indexOf(r)>state.wins)return;
+  showPortrait(`<div class="portrait-art" style="${rivalSpriteStyle(r.portrait)}" role="img" aria-label="${esc(r.name)}"></div>`,r.name,r.title);
+}
+function showHeroPortrait(){
+  const stage=heroStage(state),form=HERO_FORMS[stage];
+  showPortrait(`<img class="hero-portrait-art" src="${heroFormPath(stage)}" alt="${esc(form.name)} — твой персонаж">`,form.name,`Форма ${stage+1} / ${HERO_FORMS.length}`);
+}
 function closeModal(){if(modalKind==='fight'&&roundLock){toast('Дождись конца обмена ударами.');return;}if(modalKind==='fight'&&battle&&!battle.finished){toast('Заверши схватку или нажми «Сдаться».');return;}cleanup?.();cleanup=null;modalKind=null;working=false;document.querySelector('.arena-scene').classList.remove('scene-training');if(showPendingEvolution(true))return;$('game-dialog').close();}
 function modal(html,kind='info'){cleanup?.();cleanup=null;modalKind=kind;const dialog=$('game-dialog');dialog.classList.remove('keyboard-focus');$('dialog-content').innerHTML=html;if(!dialog.open)dialog.showModal();}
 function modalTop(eyebrow,closable=true){return `<div class="dialog-top"><span class="tiny-label">${eyebrow}</span>${closable?'<button class="close-button" data-close aria-label="Закрыть">×</button>':''}</div>`;}
@@ -635,7 +654,7 @@ function fightView(message=''){
   modal(`<div class="dialog-body fight-screen">
     <header class="fight-header"><div><span class="fight-eyebrow">${esc(GYMS[state.gym].name)} · КОВЁР</span><h2 id="dialog-title">${esc(r.name.toUpperCase())}</h2></div><span class="fight-round">РАУНД <strong>${battle.round+1}</strong></span></header>
     <div class="fight-scene fight-stage" style="--gym-position:${position(state.gym)}" role="group" aria-label="Бой в зале ${esc(GYMS[state.gym].name)}">
-      <div class="fighter-image player" id="player-fighter" style="background-image:url('${heroPath(state)}')" role="img" aria-label="Твой персонаж"><span class="fight-portrait-name">ТЫ</span></div>
+      <button type="button" class="fighter-image player portrait-trigger" id="player-fighter" data-hero-image style="background-image:url('${heroPath(state)}')" aria-label="Увеличить фото твоего персонажа"><span class="fight-portrait-name">ТЫ</span></button>
       <span class="fight-scene-vs" aria-hidden="true">VS</span>
       <button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span class="fight-portrait-name">${esc(r.name)}</span></button>
       <span class="damage-float" id="player-damage" aria-hidden="true"></span><span class="damage-float" id="enemy-damage" aria-hidden="true"></span>
@@ -748,7 +767,7 @@ function showVictory(){
 function confetti(count,victory=false){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;for(let i=0;i<count;i++){const el=document.createElement('i');el.className=`celebration-spark${victory?' victory-spark':''}`;el.style.left=`${Math.random()*100}%`;el.style.background=['var(--accent)','var(--accent-soft)','var(--reward)','var(--ink)'][i%4];el.style.animationDelay=`${Math.random()*.6}s`;el.style.setProperty('--drift',`${(Math.random()-.5)*260}px`);($('game-dialog').open?$('game-dialog'):document.body).append(el);setTimeout(()=>el.remove(),3600);}}
 function resetPrompt(){modal(`<div class="dialog-body">${modalTop('СНОВА В ПОДВАЛ')}<h2 id="dialog-title">СБРОСИТЬ ВЕСЬ ПРОГРЕСС?</h2><p class="dialog-copy">Победы, мышцы и покупки исчезнут. Снова останутся только шорты и надежда.</p><div class="dialog-actions"><button class="secondary-button" data-close>Сохранить мышцы</button><button class="primary-button" id="confirm-reset">НАЧАТЬ ЗАНОВО</button></div></div>`);}
 
-document.addEventListener('keydown',ev=>{if(ev.code!=='Space'||modalKind!=='fight'||ev.repeat)return;if(document.activeElement?.closest?.('#surrender-button, #enemy-fighter, .stat-help'))return;ev.preventDefault();makeMove('attack');});
+document.addEventListener('keydown',ev=>{if(ev.code!=='Space'||modalKind!=='fight'||ev.repeat||document.querySelector('.portrait-dialog[open]'))return;if(document.activeElement?.closest?.('#surrender-button, .portrait-trigger, .stat-help'))return;ev.preventDefault();makeMove('attack');});
 function resetGame(){
   cleanup?.();
   battle=null;
@@ -793,6 +812,7 @@ function handleClick(ev){
   const b=ev.target.closest('button');
   if(!b||b.disabled)return;
   if(b.dataset.rivalImage){showRivalPortrait(b.dataset.rivalImage);return;}
+  if(b.hasAttribute('data-hero-image')){showHeroPortrait();return;}
   if(b.hasAttribute('data-close')){closeModal();return;}
   if(b.dataset.tab){tab=b.dataset.tab;render();tone();return;}
   if(b.dataset.train){startTraining(b.dataset.train);return;}
@@ -833,7 +853,7 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Tab')ev.target.closest?.('
 document.addEventListener('pointerdown',ev=>{ev.target.closest?.('dialog')?.classList.remove('keyboard-focus');},true);
 let fightEscapePending=false;
 document.addEventListener('keydown',ev=>{
-  if(ev.key!=='Escape'||!$('game-dialog').open||!['fight','surrender-confirm'].includes(modalKind))return;
+  if(ev.key!=='Escape'||document.querySelector('.portrait-dialog[open]')||!$('game-dialog').open||!['fight','surrender-confirm'].includes(modalKind))return;
   ev.preventDefault();ev.stopImmediatePropagation();
   if(ev.repeat)return;
   fightEscapePending=true;
