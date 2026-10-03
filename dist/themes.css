@@ -111,7 +111,7 @@
 :where([data-theme="boss"]) .workout-photo.training-gif{background:var(--bg);border:1px solid var(--line-strong)}
 :where([data-theme="boss"]) .campaign-milestone{border:2px solid var(--muted);background:var(--panel);box-shadow:0 0 0 2px var(--panel)}
 :where([data-theme="boss"]) .campaign-stop-name{color:var(--muted)}
-:where([data-theme="boss"]) .stat-gain-segment{box-shadow:0 0 10px 2px color-mix(in srgb, var(--accent) 60.0%, transparent)}
+:where([data-theme="boss"]) .stat-gain-segment{box-shadow:0 0 10px 2px color-mix(in srgb, var(--feedback-gain) 60.0%, transparent)}
 :where([data-theme="boss"]) .stat-help{color:var(--muted)}
 :where([data-theme="boss"]) .stat-tooltip{border:1px solid var(--muted);background:var(--panel);color:var(--ink)}
 :where([data-theme="boss"]) .stat-hint-line{border-top:1px solid var(--line-strong)}
@@ -137,7 +137,7 @@
 :where([data-theme="boss"]) .exchange-line{background:var(--surface)}
 :where([data-theme="boss"]) .exchange-line.enemy{background:var(--surface-raised)}
 :where([data-theme="boss"]) .exchange-line small{color:var(--soft)}
-:where([data-theme="boss"]) .floating-gains{text-shadow:0 3px 18px #000,0 0 20px color-mix(in srgb, var(--accent-soft) 50.2%, transparent)}
+:where([data-theme="boss"]) .floating-gains{text-shadow:0 3px 18px #000,0 0 20px color-mix(in srgb, var(--feedback-gain) 50.2%, transparent)}
 
 
 /* At tablet widths, give resources one row and the three stats a full row. */
@@ -161,8 +161,8 @@
 :where([data-theme="boss"]) .victory-scene{border:1px solid var(--reward);box-shadow:0 0 28px color-mix(in srgb, var(--reward) 23.9%, transparent)}
 :where([data-theme="boss"]) .victory-scene::after{background:linear-gradient(90deg,transparent,color-mix(in srgb, var(--accent) 12.2%, transparent),transparent)}
 :where([data-theme="boss"]) .training-reward{border:1px solid var(--accent-soft);background:var(--surface)}
-:where([data-theme="boss"]) .energy-spent-segment{box-shadow:0 0 10px color-mix(in srgb, var(--accent) 60.0%, transparent)}
-:where([data-theme="boss"]) .energy-gain-segment{box-shadow:0 0 10px color-mix(in srgb, var(--accent-soft) 60.0%, transparent)}
+:where([data-theme="boss"]) .energy-spent-segment{box-shadow:0 0 10px color-mix(in srgb, var(--feedback-loss) 60.0%, transparent)}
+:where([data-theme="boss"]) .energy-gain-segment{box-shadow:0 0 10px color-mix(in srgb, var(--feedback-gain) 60.0%, transparent)}
 :where([data-theme="boss"]) .minigame-content .primary-button kbd{border:1px solid var(--accent)}
 :where([data-theme="boss"]) .lift-game{background:var(--panel);border:1px solid var(--surface-raised)}
 :where([data-theme="boss"]) .lift-track{background:linear-gradient(var(--panel),var(--surface));border:1px solid var(--line-strong)}

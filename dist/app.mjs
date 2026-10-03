@@ -1,4 +1,4 @@
-import {GYMS,RIVALS,SHOP,FIGHT_TIMING_SPEED_MULTIPLIER,MAX_GEAR_LEVEL,HERO_FORMS,physiquePower,heroStage,heroEvolution,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,workPayout,WORK_THROWS,buy,gearCost,beginFight,fightTurn,forfeitFight,defeatPenalty,fightTimingWindow,fightMovePreview,fightMaxHp,fightMaxStamina,fightStartingStamina,rivalMaxHp,counterDamage,migrateBattle,advanceRandomEvent} from './engine.mjs';
+import {GYMS,RIVALS,SHOP,FIGHT_TIMING_SPEED_MULTIPLIER,MAX_GEAR_LEVEL,HERO_FORMS,physiquePower,heroStage,heroEvolution,createState,sanitizeState,power,nextRival,train,trainingDifficulty,liftQuality,rest,work,workPayout,WORK_THROWS,buy,gearCost,beginFight,fightTurn,forfeitFight,defeatPenalty,techniqueTimingGrowth,fightTimingWindow,fightMovePreview,fightMaxHp,fightMaxStamina,fightStartingStamina,rivalMaxHp,counterDamage,migrateBattle,advanceRandomEvent} from './engine.mjs';
 import {mountTowelGame} from './towel.mjs';
 import {trackNewGame,trackProgress} from './metrica.mjs';
 import {THEME_BACKGROUNDS,progressionTheme} from './themes.mjs';
@@ -12,7 +12,7 @@ const statHints={
     ['В бою','Чем выше сила, тем сильнее удар, но после 60 силы прирост замедляется. Точное попадание даёт полный урон.'],
   ],
   technique:[
-    ['В бою','Чем выше техника, тем шире зелёная зона для удара. Её размер также зависит от соперника.'],
+    ['В бою','Чем выше техника, тем шире зелёная зона для удара. После 60 рост замедляется, но продолжается. Её размер также зависит от соперника.'],
   ],
   endurance:[
     ['В бою','Выносливость увеличивает здоровье и запас сил, чтобы пережить больше ответных ударов. Больше энергии перед боем — больше сил на старте.'],
@@ -63,6 +63,7 @@ function statHint(key,label){
   const earlyStrength=Math.min(current.strength,60),lateStrength=Math.max(0,current.strength-60);
   const rawDamage=9+earlyStrength*.34+lateStrength*.12;
   const baseZone=rival.timingBaseWindow*200,techniqueZone=Math.min(11,state.technique*.18),prepZone=current.timingBonus*200;
+  const lateTechnique=Math.max(0,state.technique-60),lateZone=techniqueTimingGrowth(state.technique)*200;
   const staminaMultiplier=state.fightPrep==='shawarma'?1.1:state.fightPrep==='cookies'?1.2:1;
   const boostCost=state.fightPrep==='serum'?15:state.fightPrep==='trenbolone'?25:0;
   const committedEnergy=Math.min(80,Math.max(0,state.energy-boostCost));
@@ -74,9 +75,9 @@ function statHint(key,label){
     },
     technique:{
       summary:`Зелёная зона: ${hintNumber(current.zone)}% шкалы`,
-      formulas:[`Зона = база соперника + бонус техники + магнезия.`,`${hintNumber(baseZone)}% + ${hintNumber(techniqueZone)}%${prepZone?` + ${hintNumber(prepZone)}%`:''} = ${hintNumber(baseZone+techniqueZone+prepZone)}% → ${hintNumber(current.zone)}%.`],
+      formulas:[`Базовая зона = зона соперника + бонус техники + магнезия.`,`${hintNumber(baseZone)}% + ${hintNumber(techniqueZone)}%${prepZone?` + ${hintNumber(prepZone)}%`:''} = ${hintNumber(baseZone+techniqueZone+prepZone)}% → ${hintNumber(current.zone-lateZone)}%.`,...(lateTechnique?[`После 60: 5 × ${lateTechnique} / (${lateTechnique} + 100) = ${hintNumber(lateZone)}%.`,`Итого: ${hintNumber(current.zone-lateZone)}% + ${hintNumber(lateZone)}% = ${hintNumber(current.zone)}%.`]:[])],
       note:`Техника расширяет зону попадания: в неё легче попасть бегунком. Ширина указана против «${rival.name}».${prep}`,
-      calculationNote:`Бонус техники = техника × 0,18 процентного пункта, но не больше 11. Итоговая ширина ограничена диапазоном 12–${hintNumber(25+prepZone)}% и округляется с шагом 0,2 процентного пункта.`,
+      calculationNote:`Базовый бонус техники = техника × 0,18 процентного пункта, но не больше 11. Базовая ширина ограничена диапазоном 12–${hintNumber(25+prepZone)}% и округляется с шагом 0,2 процентного пункта. Затем техника сверх 60 добавляет плавный прирост: он замедляется и остаётся меньше 5 процентных пунктов.`,
     },
     endurance:{
       summary:[`Здоровье: ${current.hp}`,`Сил на старте: ${current.stamina}`,`Максимальный запас сил: ${current.maxStamina}`],
@@ -135,6 +136,7 @@ function gainsPop(gains,heroGains=false,trainingKind=null){
   if(heroGains){
     const el=$('floating-gains');
     el.textContent=(trainingKind?[trainingKind]:statKeys.filter(k=>gains[k]>0)).map(k=>`${stats[k].toUpperCase()} +${gains[k]||0}`).join('\n');
+    el.classList.toggle('no-gain',trainingKind?!(gains[trainingKind]>0):!statKeys.some(k=>gains[k]>0));
     el.classList.remove('gain-pop');
     void el.offsetWidth;
     el.classList.add('gain-pop');
@@ -203,7 +205,7 @@ function renderStats(){
     const gain=recentGains?.[k]||0;
     const before=Math.min(100,Math.max(0,state[k]-gain));
     const after=Math.min(100,state[k]);
-    return `<div class="stat ${gain?'gained':''}"><div><span class="stat-name">${stats[k]} ${statHint(k,stats[k])}</span><strong>${state[k]}${gain||recentTrainingKind===k?` (+${gain})`:''}</strong></div><div class="stat-track"><i style="width:${after}%"></i>${gain&&after>before?`<b class="stat-gain-segment" style="left:${before}%;width:${after-before}%"></b>`:''}</div></div>`;
+    return `<div class="stat ${gain>0?'gained':gain<0?'spent':''}"><div><span class="stat-name">${stats[k]} ${statHint(k,stats[k])}</span><strong>${state[k]}${gain||recentTrainingKind===k?` (${gain>=0?'+':''}${gain})`:''}</strong></div><div class="stat-track"><i style="width:${after}%"></i>${gain&&after>before?`<b class="stat-gain-segment" style="left:${before}%;width:${after-before}%"></b>`:''}</div></div>`;
   }).join('');
 }
 function renderFormulaHints(){
@@ -598,7 +600,6 @@ function floatDamage(side,damage,note){
 function updateFightMeter(side,hp,max){
   $(`${side}-hp-value`).textContent=`${hp} / ${max}`;
   $(`${side}-hp-bar`).style.width=`${Math.max(0,Math.min(100,hp/max*100))}%`;
-  if(side==='enemy'&&$('rival-health-value'))$('rival-health-value').textContent=`${hp} / ${max}`;
 }
 function rivalCardStatsMarkup(r){
   const maxHp=rivalMaxHp(r);
@@ -614,12 +615,10 @@ function rivalCardStatsMarkup(r){
   </dl>`;
 }
 function rivalStatsMarkup(r,current=null){
-  const maxHp=current?.enemyMaxHp||rivalMaxHp(r),hp=current?.enemyHp??maxHp;
   const speed=r.timingPeriod<=530?'Высокая':r.timingPeriod>=650?'Низкая':'Средняя';
   const agility=r.timingBaseWindow<=0.066?'Высокая':r.timingBaseWindow>=0.078?'Низкая':'Средняя';
-  return `<dl class="fight-rival-stats" aria-label="Характеристики соперника">
+  return `<dl class="fight-rival-stats fight-combat-stats" aria-label="Характеристики соперника">
     <div><dt>Мощь</dt><dd>${r.power}</dd></div>
-    <div><dt>Здоровье</dt><dd${current?' id="rival-health-value"':''}>${hp} / ${maxHp}</dd></div>
     <div><dt>Урон</dt><dd>${counterDamage(r)}</dd></div>
     <div><dt>Скорость ${rivalStatHint('speed',r,current)}</dt><dd>${speed}</dd></div>
     <div><dt>Ловкость ${rivalStatHint('agility',r,current)}</dt><dd>${agility}</dd></div>
@@ -641,9 +640,25 @@ function fightView(message=''){
       <button type="button" class="fighter-image enemy portrait-trigger" id="enemy-fighter" data-rival-image="${r.id}" style="${fightSpriteStyle(r.portrait)}" aria-label="Увеличить фото ${esc(r.name)}"><span class="fight-portrait-name">${esc(r.name)}</span></button>
       <span class="damage-float" id="player-damage" aria-hidden="true"></span><span class="damage-float" id="enemy-damage" aria-hidden="true"></span>
     </div>
-    ${rivalStatsMarkup(r,battle)}
-    <div class="fight-vitals"><div class="hp-meter"><div class="hp-label"><span>ТВОЁ ЗДОРОВЬЕ</span><strong id="player-hp-value">${battle.playerHp} / ${playerMaxHp}</strong></div><div class="hp-track"><i id="player-hp-bar" style="width:${battle.playerHp/playerMaxHp*100}%"></i></div></div><div class="hp-meter"><div class="hp-label"><span>ЗДОРОВЬЕ СОПЕРНИКА</span><strong id="enemy-hp-value">${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i id="enemy-hp-bar" style="width:${enemyHpPct}%"></i></div></div></div>
-    <section class="fight-control" aria-label="Управление атакой"><div class="stamina-meter" id="fight-stamina" role="progressbar" aria-label="Запас сил" aria-valuemin="0" aria-valuemax="${maxStamina}" aria-valuenow="${battle.playerStamina}"><div class="stamina-label"><span>ЗАПАС СИЛ</span><strong id="fight-stamina-value">${battle.playerStamina} / ${maxStamina}</strong></div><div class="stamina-track ${staminaPct<25?'low':''}"><i id="fight-stamina-bar" style="width:${staminaPct}%"></i></div></div><div class="fight-timing-heading"><span>Твой урон: 0–${preview?.maxDamage??0} · ответ: ${preview?.counterDamage??0}</span></div><div class="timing-track fight-timing-track" role="img" aria-label="Зона атаки: яркий центр — 100 процентов урона, средние части — две трети, блеклые края — одна треть, вне зоны — промах"><div class="timing-zone fight-timing-zone" style="left:${(0.5-timingWindow)*100}%;width:${timingWindow*200}%"></div><i class="timing-marker" id="fight-marker"></i></div><button class="primary-button attack-button" data-move="attack" ${roundLock?'disabled':''}><strong>АТАКОВАТЬ</strong><kbd>ПРОБЕЛ</kbd></button></section>
+    <div class="fight-status">
+      <section class="fight-status-block player-status" aria-labelledby="player-status-title">
+        <h3 class="fight-status-heading" id="player-status-title">ТЫ</h3>
+        <div class="fight-player-resources">
+          <div class="hp-meter"><div class="hp-label"><span>Здоровье</span><strong id="player-hp-value">${battle.playerHp} / ${playerMaxHp}</strong></div><div class="hp-track"><i id="player-hp-bar" style="width:${battle.playerHp/playerMaxHp*100}%"></i></div></div>
+          <div class="stamina-meter" id="fight-stamina" role="progressbar" aria-label="Твой запас сил" aria-valuemin="0" aria-valuemax="${maxStamina}" aria-valuenow="${battle.playerStamina}"><div class="stamina-label"><span>Запас сил</span><strong id="fight-stamina-value">${battle.playerStamina} / ${maxStamina}</strong></div><div class="stamina-track ${staminaPct<25?'low':''}"><i id="fight-stamina-bar" style="width:${staminaPct}%"></i></div></div>
+        </div>
+        <dl class="fight-combat-stats" aria-label="Твои боевые характеристики">
+          <div><dt>Мощь</dt><dd>${power(state)}</dd></div>
+          <div><dt>Урон</dt><dd>0–${preview?.maxDamage??0}</dd></div>
+        </dl>
+      </section>
+      <section class="fight-status-block rival-status" aria-labelledby="rival-status-title">
+        <h3 class="fight-status-heading" id="rival-status-title">СОПЕРНИК</h3>
+        <div class="hp-meter"><div class="hp-label"><span>Здоровье</span><strong id="enemy-hp-value">${battle.enemyHp} / ${enemyMaxHp}</strong></div><div class="hp-track enemy-bar"><i id="enemy-hp-bar" style="width:${enemyHpPct}%"></i></div></div>
+        ${rivalStatsMarkup(r,battle)}
+      </section>
+    </div>
+    <section class="fight-control" aria-label="Управление атакой"><div class="fight-timing-heading"><span>Твой урон: 0–${preview?.maxDamage??0} · ответ: ${preview?.counterDamage??0}</span></div><div class="timing-track fight-timing-track" role="img" aria-label="Зона атаки: яркий центр — 100 процентов урона, средние части — две трети, блеклые края — одна треть, вне зоны — промах"><div class="timing-zone fight-timing-zone" style="left:${(0.5-timingWindow)*100}%;width:${timingWindow*200}%"></div><i class="timing-marker" id="fight-marker"></i></div><button class="primary-button attack-button" data-move="attack" ${roundLock?'disabled':''}><strong>АТАКОВАТЬ</strong><kbd>ПРОБЕЛ</kbd></button></section>
     <div class="fight-log" id="fight-log" aria-live="polite">${fightLogMarkup(battle,message)}</div><div class="fight-footer"><span class="battle-hint">Бой идёт до нуля здоровья или запаса сил. Последним ударом можно победить.</span><button class="text-button" id="surrender-button">Сдаться</button></div><details class="fight-rules"><summary>Как работают показатели</summary><p><strong>Сила ${state.strength}</strong> увеличивает урон · <strong>Техника ${state.technique}</strong> расширяет зону · <strong>Выносливость ${state.endurance}</strong> увеличивает здоровье и запас сил. Соперник отвечает полным ударом после каждой атаки, если ещё стоит. Точный удар тратит 8 сил, обычное попадание — 10, промах — 13.</p><p><strong>Мощь соперника</strong> определяет его урон. Чем выше <strong>скорость</strong>, тем быстрее движется маркер; чем выше <strong>ловкость</strong>, тем уже исходная зона попадания. Твоя техника и магнезия расширяют эту зону.</p></details>
   </div>`,'fight');
   $('dialog-content').querySelector('[data-move="attack"]')?.focus({preventScroll:true});

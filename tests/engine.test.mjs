@@ -360,6 +360,34 @@ assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').
 assert.ok(fightTimingWindow({ ...initial, technique: 80 }, basic.battle) > fightTimingWindow(initial, basic.battle));
 assert.ok(fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[5].id }) < fightTimingWindow(initial, { ...basic.battle, rivalId: RIVALS[2].id }));
 assert.ok(fightTimingWindow(initial, basic.battle) < 0.1, 'Initial timing zone is substantially narrower than the old one');
+
+// Late technique must improve actual hit grades, including against rivals whose
+// original zone capped early. Keep the early game and the chalk advantage intact.
+const lateTechniqueLevels = [60, 61, 80, 100, 150, 300, 500];
+for (const rival of RIVALS) {
+  for (const timingBonus of [0, 0.018]) {
+    const widths = lateTechniqueLevels.map(technique => fightTimingWindow({ ...initial, technique }, { rivalId: rival.id, timingBonus }));
+    assert.ok(widths.every((width, index) => index === 0 || width > widths[index - 1]), `${rival.name}: technique stays useful after 60`);
+    assert.ok(widths.at(-1) < 0.125 + timingBonus + 0.025, 'Late technique adds less than five percentage points to the full zone');
+  }
+  const highTechnique = { ...initial, technique: 500 };
+  const plain = fightTimingWindow(highTechnique, { rivalId: rival.id, timingBonus: 0 });
+  const chalked = fightTimingWindow(highTechnique, { rivalId: rival.id, timingBonus: 0.018 });
+  assert.ok(Math.abs(chalked - plain - 0.018) < 0.000002, 'Chalk retains its full bonus at high technique');
+}
+const finalRivalId = RIVALS.at(-1).id;
+assert.equal(fightTimingWindow({ ...initial, technique: 6 }, { rivalId: finalRivalId }), 0.066);
+assert.equal(fightTimingWindow({ ...initial, technique: 60 }, { rivalId: finalRivalId }), 0.115);
+const lateWidths = [60, 100, 150].map(technique => fightTimingWindow({ ...initial, technique }, { rivalId: finalRivalId }));
+assert.ok((lateWidths[2] - lateWidths[1]) / 50 < (lateWidths[1] - lateWidths[0]) / 40, 'Late technique has diminishing returns');
+const beforeTechnique = { ...initial, wins: 11, gym: 3, strength: 80, technique: 60, endurance: 80 };
+const afterTechnique = { ...beforeTechnique, technique: 150 };
+const beforeTechniqueFight = beginFight(beforeTechnique), afterTechniqueFight = beginFight(afterTechnique);
+assert.equal(fightTurn(beforeTechniqueFight.state, beforeTechniqueFight.battle, 'attack', 0.541).turn.timingGrade, 'good');
+assert.equal(fightTurn(afterTechniqueFight.state, afterTechniqueFight.battle, 'attack', 0.541).turn.timingGrade, 'perfect', 'Extra technique turns a marginal hit into a perfect hit');
+assert.equal(fightMovePreview(beforeTechniqueFight.state, beforeTechniqueFight.battle, 'attack').maxDamage, fightMovePreview(afterTechniqueFight.state, afterTechniqueFight.battle, 'attack').maxDamage);
+assert.equal(afterTechniqueFight.battle.playerMaxHp, beforeTechniqueFight.battle.playerMaxHp);
+assert.equal(afterTechniqueFight.battle.maxStamina, beforeTechniqueFight.battle.maxStamina);
 assert.equal(fightMovePreview({ ...initial, endurance: 80 }, durable, 'attack').staminaDelta, -8, 'Endurance does not change per-turn stamina economics');
 assert.equal(durable.playerMaxHp, 244);
 const finalState = { ...initial, wins: 11, gym: 3, strength: 80, endurance: 8 };

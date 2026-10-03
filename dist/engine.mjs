@@ -318,16 +318,25 @@ export function fightStartingStamina(state) {
   return Math.round(fightMaxStamina(state) * (0.25 + 0.75 * energyCommitted(state) / 80));
 }
 
+// Keep the early-game zone intact; extra technique adds a small, tapering
+// half-window beyond its old cap (less than 0.025, or 5% of the full bar).
+export function techniqueTimingGrowth(technique) {
+  const extra = Math.max(0, finite(technique, 6, 1, 500) - 60);
+  return 0.025 * extra / (extra + 100);
+}
+
 export function fightTimingWindow(state, battle) {
   const rival = RIVALS.find(entry => entry.id === battle?.rivalId);
   if (!rival) return 0.078;
   const technique = finite(state?.technique, 6, 1, 500);
   const bonus = battle?.timingBonus ?? PREP[state?.fightPrep]?.timing ?? 0;
-  // Rival profiles trade speed against width; technique always widens the zone.
-  return Math.round(clamp(
+  // Rival profiles trade speed against width. Apply late growth after the
+  // original cap so high technique remains useful against every rival.
+  const baseWindow = Math.round(clamp(
     rival.timingBaseWindow + Math.min(0.055, technique * 0.0009) + bonus,
     0.06, 0.125 + bonus,
   ) * 1000) / 1000;
+  return Math.round((baseWindow + techniqueTimingGrowth(technique)) * 1000000) / 1000000;
 }
 
 function attackDamage(strength) {
